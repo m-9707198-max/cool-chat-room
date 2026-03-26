@@ -20,7 +20,7 @@
         
         #chat-container { display: none; height: 100vh; flex-direction: column; }
         
-        #header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        #header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex-shrink: 0; }
         .header-left { display: flex; align-items: center; gap: 10px; }
         .current-avatar { width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; cursor: pointer; object-fit: cover; }
         .header-info h3 { font-size: 16px; margin-bottom: 3px; }
@@ -32,16 +32,29 @@
         .logout-btn:hover { background: rgba(231, 76, 60, 1); }
         .coin-display { background: rgba(0,0,0,0.3); padding: 5px 12px; border-radius: 20px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
         
-        #marquee-container { background: #fff3cd; color: #856404; padding: 8px; font-size: 13px; overflow: hidden; white-space: nowrap; }
+        #marquee-container { background: #fff3cd; color: #856404; padding: 8px; font-size: 13px; overflow: hidden; white-space: nowrap; flex-shrink: 0; }
         #marquee { display: inline-block; animation: scroll 20s linear infinite; }
         @keyframes scroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
         
-        #admin-panel { display: none; background: linear-gradient(135deg, #667eea20, #764ba220); padding: 10px; border-bottom: 2px solid #667eea; font-size: 12px; max-height: 300px; overflow-y: auto; }
+        #admin-panel { display: none; background: linear-gradient(135deg, #667eea20, #764ba220); padding: 10px; border-bottom: 2px solid #667eea; font-size: 12px; max-height: 200px; overflow-y: auto; flex-shrink: 0; }
         .admin-section { background: white; padding: 8px; margin-bottom: 8px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .admin-section b { color: #667eea; }
         .admin-select { padding: 5px; border-radius: 5px; border: 1px solid #ccc; margin: 2px; }
         
-        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; background: #f0f2f5; }
+        /* 修复消息滚动 - 使用更好的滚动容器 */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+        }
+        #messages {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
         .msg-box { display: flex; gap: 10px; max-width: 85%; animation: fadeIn 0.3s; position: relative; }
         .msg-box.self { align-self: flex-end; flex-direction: row-reverse; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -137,7 +150,7 @@
         @keyframes divineLight { 0% { filter: brightness(1); } 100% { filter: brightness(1.2); } }
         @keyframes glow { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
         
-        #input-area { display: flex; padding: 12px; background: white; border-top: 1px solid #ddd; gap: 8px; align-items: center; }
+        #input-area { display: flex; padding: 12px; background: white; border-top: 1px solid #ddd; gap: 8px; align-items: center; flex-shrink: 0; }
         #input-area input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 25px; outline: none; font-size: 14px; }
         .icon-btn { background: #f0f2f5; border: none; font-size: 24px; cursor: pointer; padding: 8px 12px; border-radius: 25px; transition: all 0.2s; }
         .icon-btn:hover { background: #e0e0e0; transform: scale(1.05); }
@@ -188,6 +201,9 @@
         #avatar-input { display: none; }
         .delete-btn { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 11px; padding: 0 5px; }
         .delete-btn:hover { text-decoration: underline; }
+        
+        /* 系统消息样式 */
+        .system-msg { text-align: center; color: #888; font-size: 12px; margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -228,7 +244,10 @@
 
         <div id="admin-panel"></div>
 
-        <div id="messages"></div>
+        <!-- 修复消息滚动：独立的滚动容器 -->
+        <div class="messages-container" id="messages-container">
+            <div id="messages"></div>
+        </div>
 
         <div id="input-area">
             <input type="file" id="image-input" accept="image/*" style="display: none;" onchange="uploadImage()">
@@ -288,6 +307,7 @@
         let userBubble = "bubble-default";
         let userTail = "tail-default";
         let userFrame = "";
+        let autoLoginDone = false; // 防止重复自动登录
 
         const SHOP_ITEMS = {
             bubbles: [
@@ -339,7 +359,15 @@
             "✨ 神圣天使": "medal-divine"
         };
 
-        // ========== 登录注册相关（含自动登录） ==========
+        // 滚动到底部
+        function scrollToBottom() {
+            const container = document.getElementById('messages-container');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        // ========== 登录注册相关 ==========
         function register() {
             let user = document.getElementById('username').value.trim();
             let pass = document.getElementById('password').value.trim();
@@ -347,16 +375,7 @@
             socket.emit('register', { user, pass }, res => alert(res.msg));
         }
 
-        function doLogin() {
-            let user = document.getElementById('username').value.trim();
-            let pass = document.getElementById('password').value.trim();
-            let inviteCode = document.getElementById('invite').value.trim() || "666";
-            
-            if(!user || !pass) {
-                alert("请输入账号和密码！");
-                return;
-            }
-            
+        function doLogin(user, pass, inviteCode) {
             socket.emit('login', { user, pass, inviteCode }, (res) => {
                 if(res.status === 'ok') {
                     currentUser = user;
@@ -366,7 +385,7 @@
                     userTail = res.userData.tail || "tail-default";
                     userFrame = res.userData.frame || "";
                     
-                    // 保存登录信息到 localStorage
+                    // 保存登录信息
                     localStorage.setItem('chatUser', user);
                     localStorage.setItem('chatPass', pass);
                     localStorage.setItem('chatInvite', inviteCode);
@@ -381,6 +400,9 @@
                     if(isAdmin) renderAdminPanel();
                     res.history.forEach(renderMsg);
                     socket.emit('set user', user);
+                    
+                    // 滚动到底部
+                    setTimeout(scrollToBottom, 100);
                 } else { 
                     localStorage.removeItem('chatPass');
                     alert(res.msg); 
@@ -389,15 +411,26 @@
         }
 
         function login() {
-            doLogin();
+            let user = document.getElementById('username').value.trim();
+            let pass = document.getElementById('password').value.trim();
+            let inviteCode = document.getElementById('invite').value.trim() || "666";
+            
+            if(!user || !pass) {
+                alert("请输入账号和密码！");
+                return;
+            }
+            doLogin(user, pass, inviteCode);
         }
 
-        function checkAutoLogin() {
+        // 页面加载时自动登录
+        window.addEventListener('load', () => {
+            if (autoLoginDone) return;
             let savedUser = localStorage.getItem('chatUser');
             let savedPass = localStorage.getItem('chatPass');
             let savedInvite = localStorage.getItem('chatInvite');
             
             if(savedUser && savedPass) {
+                autoLoginDone = true;
                 document.getElementById('username').value = savedUser;
                 document.getElementById('password').value = savedPass;
                 document.getElementById('invite').value = savedInvite || "666";
@@ -409,10 +442,10 @@
                 
                 setTimeout(() => {
                     tip.remove();
-                    doLogin();
+                    doLogin(savedUser, savedPass, savedInvite || "666");
                 }, 500);
             }
-        }
+        });
 
         function logout() {
             if(confirm('确定要退出登录吗？')) {
@@ -420,24 +453,18 @@
                 localStorage.removeItem('chatPass');
                 localStorage.removeItem('chatInvite');
                 
-                socket.disconnect();
-                
                 document.getElementById('chat-container').style.display = 'none';
                 document.getElementById('login-container').style.display = 'flex';
                 document.getElementById('messages').innerHTML = '';
                 document.getElementById('msg-input').value = '';
                 
-                socket.connect();
                 currentUser = "";
                 isAdmin = false;
+                autoLoginDone = false;
                 
                 alert('已安全退出登录');
             }
         }
-
-        window.addEventListener('load', () => {
-            checkAutoLogin();
-        });
 
         // ========== 其他功能函数 ==========
         function updateCoinDisplay() {
@@ -488,7 +515,6 @@
                         alert(`改名成功！新昵称：${newName}`);
                         currentUser = newName;
                         document.getElementById('current-username-display').innerText = newName;
-                        // 更新保存的登录名
                         localStorage.setItem('chatUser', newName);
                     } else {
                         alert(res.msg);
@@ -612,9 +638,9 @@
             
             let loadingMsg = document.createElement('div');
             loadingMsg.className = 'system-msg';
-            loadingMsg.style.cssText = 'text-align:center; color:#888; font-size:12px; margin: 10px 0;';
             loadingMsg.innerText = '📸 图片上传中...';
             document.getElementById('messages').appendChild(loadingMsg);
+            scrollToBottom();
             
             let reader = new FileReader();
             reader.onload = function(e) {
@@ -638,7 +664,10 @@
             document.getElementById('image-input').value = '';
         }
 
-        socket.on('chat message', renderMsg);
+        socket.on('chat message', (data) => {
+            renderMsg(data);
+            scrollToBottom();
+        });
 
         function renderMsg(data) {
             let box = document.createElement('div');
@@ -661,7 +690,7 @@
 
             let bubbleClass = data.bubble || 'bubble-default';
             let contentHtml = data.type === 'image' 
-                ? `<img src="${data.content}" class="msg-image" onclick="window.open('${data.content}')" style="max-width:300px; max-height:300px; border-radius:10px; cursor:pointer;">` 
+                ? `<img src="${data.content}" class="msg-image" onclick="window.open('${data.content}')" style="max-width:250px; max-height:250px; border-radius:10px; cursor:pointer;">` 
                 : `<div class="msg-content ${bubbleClass}">${escapeHtml(data.content)}</div>`;
                 
             let deleteHtml = isAdmin ? `<button class="delete-btn" onclick="deleteMsg('${data.id}')">🗑️删除</button>` : '';
@@ -676,7 +705,6 @@
             
             let msgDiv = document.getElementById('messages');
             msgDiv.appendChild(box);
-            setTimeout(() => { msgDiv.scrollTop = msgDiv.scrollHeight; }, 100);
         }
 
         function escapeHtml(text) {
@@ -860,10 +888,10 @@
         socket.on('announcement', text => document.getElementById('marquee').innerText = text);
         socket.on('system msg', text => {
             let div = document.createElement('div');
-            div.style = "text-align:center; color:#888; font-size:12px; margin: 10px 0;";
+            div.className = 'system-msg';
             div.innerText = text;
             document.getElementById('messages').appendChild(div);
-            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+            scrollToBottom();
         });
 
         function switchTab(tabId) {
