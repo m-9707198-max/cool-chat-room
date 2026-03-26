@@ -25,9 +25,11 @@
         .current-avatar { width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; cursor: pointer; object-fit: cover; }
         .header-info h3 { font-size: 16px; margin-bottom: 3px; }
         .header-info p { font-size: 11px; opacity: 0.9; }
-        .header-buttons { display: flex; gap: 10px; align-items: center; }
+        .header-buttons { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .header-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 20px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
         .header-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
+        .logout-btn { background: rgba(231, 76, 60, 0.8); }
+        .logout-btn:hover { background: rgba(231, 76, 60, 1); }
         .coin-display { background: rgba(0,0,0,0.3); padding: 5px 12px; border-radius: 20px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
         
         #marquee-container { background: #fff3cd; color: #856404; padding: 8px; font-size: 13px; overflow: hidden; white-space: nowrap; }
@@ -218,6 +220,7 @@
                 <button class="header-btn" onclick="showChangeNameDialog()">✏️ 改名</button>
                 <button class="header-btn" onclick="openShop()">🛒 商城</button>
                 <button class="header-btn" onclick="openLeaderboard()">🏆 排行</button>
+                <button class="header-btn logout-btn" onclick="logout()">🚪 退出</button>
             </div>
         </div>
         
@@ -336,6 +339,7 @@
             "✨ 神圣天使": "medal-divine"
         };
 
+        // ========== 登录注册相关（含自动登录） ==========
         function register() {
             let user = document.getElementById('username').value.trim();
             let pass = document.getElementById('password').value.trim();
@@ -343,12 +347,17 @@
             socket.emit('register', { user, pass }, res => alert(res.msg));
         }
 
-        function login() {
+        function doLogin() {
             let user = document.getElementById('username').value.trim();
             let pass = document.getElementById('password').value.trim();
             let inviteCode = document.getElementById('invite').value.trim() || "666";
             
-            socket.emit('login', { user, pass, inviteCode }, res => {
+            if(!user || !pass) {
+                alert("请输入账号和密码！");
+                return;
+            }
+            
+            socket.emit('login', { user, pass, inviteCode }, (res) => {
                 if(res.status === 'ok') {
                     currentUser = user;
                     isAdmin = res.isAdmin;
@@ -356,6 +365,11 @@
                     userBubble = res.userData.bubble || "bubble-default";
                     userTail = res.userData.tail || "tail-default";
                     userFrame = res.userData.frame || "";
+                    
+                    // 保存登录信息到 localStorage
+                    localStorage.setItem('chatUser', user);
+                    localStorage.setItem('chatPass', pass);
+                    localStorage.setItem('chatInvite', inviteCode);
                     
                     document.getElementById('login-container').style.display = 'none';
                     document.getElementById('chat-container').style.display = 'flex';
@@ -367,10 +381,65 @@
                     if(isAdmin) renderAdminPanel();
                     res.history.forEach(renderMsg);
                     socket.emit('set user', user);
-                } else { alert(res.msg); }
+                } else { 
+                    localStorage.removeItem('chatPass');
+                    alert(res.msg); 
+                }
             });
         }
 
+        function login() {
+            doLogin();
+        }
+
+        function checkAutoLogin() {
+            let savedUser = localStorage.getItem('chatUser');
+            let savedPass = localStorage.getItem('chatPass');
+            let savedInvite = localStorage.getItem('chatInvite');
+            
+            if(savedUser && savedPass) {
+                document.getElementById('username').value = savedUser;
+                document.getElementById('password').value = savedPass;
+                document.getElementById('invite').value = savedInvite || "666";
+                
+                let tip = document.createElement('div');
+                tip.style.cssText = 'color:#2ecc71; font-size:12px; margin-top:5px;';
+                tip.innerText = '🔄 正在自动登录...';
+                document.querySelector('.login-box').appendChild(tip);
+                
+                setTimeout(() => {
+                    tip.remove();
+                    doLogin();
+                }, 500);
+            }
+        }
+
+        function logout() {
+            if(confirm('确定要退出登录吗？')) {
+                localStorage.removeItem('chatUser');
+                localStorage.removeItem('chatPass');
+                localStorage.removeItem('chatInvite');
+                
+                socket.disconnect();
+                
+                document.getElementById('chat-container').style.display = 'none';
+                document.getElementById('login-container').style.display = 'flex';
+                document.getElementById('messages').innerHTML = '';
+                document.getElementById('msg-input').value = '';
+                
+                socket.connect();
+                currentUser = "";
+                isAdmin = false;
+                
+                alert('已安全退出登录');
+            }
+        }
+
+        window.addEventListener('load', () => {
+            checkAutoLogin();
+        });
+
+        // ========== 其他功能函数 ==========
         function updateCoinDisplay() {
             document.getElementById('coin-display').innerHTML = `💰 ${userCoins}`;
             let shopCoins = document.getElementById('shop-coins');
@@ -419,6 +488,8 @@
                         alert(`改名成功！新昵称：${newName}`);
                         currentUser = newName;
                         document.getElementById('current-username-display').innerText = newName;
+                        // 更新保存的登录名
+                        localStorage.setItem('chatUser', newName);
                     } else {
                         alert(res.msg);
                     }
@@ -534,21 +605,37 @@
         function uploadImage() {
             let file = document.getElementById('image-input').files[0];
             if(!file) return;
-            if(file.size > 5 * 1024 * 1024) {
-                alert("图片大小不能超过5MB！");
+            if(file.size > 20 * 1024 * 1024) {
+                alert("图片大小不能超过20MB！");
                 return;
             }
+            
+            let loadingMsg = document.createElement('div');
+            loadingMsg.className = 'system-msg';
+            loadingMsg.style.cssText = 'text-align:center; color:#888; font-size:12px; margin: 10px 0;';
+            loadingMsg.innerText = '📸 图片上传中...';
+            document.getElementById('messages').appendChild(loadingMsg);
+            
             let reader = new FileReader();
             reader.onload = function(e) {
-                socket.emit('chat message', { 
-                    user: currentUser, 
-                    type: 'image', 
-                    content: e.target.result,
-                    bubble: userBubble,
-                    tail: userTail
+                let imageData = e.target.result;
+                socket.emit('upload image', { imageData: imageData }, (res) => {
+                    loadingMsg.remove();
+                    if(res.success) {
+                        socket.emit('chat message', { 
+                            user: currentUser, 
+                            type: 'image', 
+                            content: res.url,
+                            bubble: userBubble,
+                            tail: userTail
+                        });
+                    } else {
+                        alert('图片上传失败: ' + res.error);
+                    }
                 });
             };
             reader.readAsDataURL(file);
+            document.getElementById('image-input').value = '';
         }
 
         socket.on('chat message', renderMsg);
@@ -574,7 +661,7 @@
 
             let bubbleClass = data.bubble || 'bubble-default';
             let contentHtml = data.type === 'image' 
-                ? `<img src="${data.content}" class="msg-image" onclick="window.open('${data.content}')" style="max-width:200px; border-radius:10px; cursor:pointer;">` 
+                ? `<img src="${data.content}" class="msg-image" onclick="window.open('${data.content}')" style="max-width:300px; max-height:300px; border-radius:10px; cursor:pointer;">` 
                 : `<div class="msg-content ${bubbleClass}">${escapeHtml(data.content)}</div>`;
                 
             let deleteHtml = isAdmin ? `<button class="delete-btn" onclick="deleteMsg('${data.id}')">🗑️删除</button>` : '';
