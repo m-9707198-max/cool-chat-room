@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>炫酷聊天室 | 快乐 开心 最重要</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; overflow: hidden; }
+        
+        #login-container { display: flex; height: 100vh; justify-content: center; align-items: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .login-box { background: white; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 350px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .login-box h2 { color: #667eea; margin-bottom: 10px; }
+        .login-box input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; }
+        .login-box button { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: transform 0.2s; }
+        .login-box button:hover { transform: translateY(-2px); }
+        .btn-login { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        .btn-register { background: #2ecc71; color: white; }
+        
+        #chat-container { display: none; height: 100vh; flex-direction: column; }
+        
+        #header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        .current-avatar { width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; cursor: pointer; object-fit: cover; }
+        .header-info h3 { font-size: 16px; margin-bottom: 3px; }
+        .header-info p { font-size: 11px; opacity: 0.9; }
+        .header-buttons { display: flex; gap: 10px; align-items: center; }
+        .header-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 20px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
+        .header-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
+        .coin-display { background: rgba(0,0,0,0.3); padding: 5px 12px; border-radius: 20px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        
+        #marquee-container { background: #fff3cd; color: #856404; padding: 8px; font-size: 13px; overflow: hidden; white-space: nowrap; }
+        #marquee { display: inline-block; animation: scroll 20s linear infinite; }
+        @keyframes scroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        
+        #admin-panel { display: none; background: linear-gradient(135deg, #667eea20, #764ba220); padding: 10px; border-bottom: 2px solid #667eea; font-size: 12px; max-height: 300px; overflow-y: auto; }
+        .admin-section { background: white; padding: 8px; margin-bottom: 8px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .admin-section b { color: #667eea; }
+        .admin-select { padding: 5px; border-radius: 5px; border: 1px solid #ccc; margin: 2px; }
+        
+        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; background: #f0f2f5; }
+        .msg-box { display: flex; gap: 10px; max-width: 85%; animation: fadeIn 0.3s; position: relative; }
+        .msg-box.self { align-self: flex-end; flex-direction: row-reverse; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .avatar-frame { border-radius: 50%; padding: 3px; display: inline-block; }
+        .frame-gold { background: linear-gradient(135deg, #FFD700, #FFA500); }
+        .frame-silver { background: linear-gradient(135deg, #C0C0C0, #808080); }
+        .frame-rainbow { background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet); animation: frameRotate 3s linear infinite; background-size: 200%; }
+        .frame-diamond { background: linear-gradient(135deg, #00FFFF, #0099FF); }
+        .frame-flame { background: linear-gradient(135deg, #FF4D4D, #FF0000); animation: framePulse 0.5s infinite; }
+        @keyframes frameRotate { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+        @keyframes framePulse { 0% { box-shadow: 0 0 0 0 rgba(255,77,77,0.7); } 100% { box-shadow: 0 0 0 5px rgba(255,77,77,0); } }
+        
+        .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer; transition: transform 0.2s; display: block; }
+        .avatar:hover { transform: scale(1.1); }
+        
+        .msg-content { background: white; padding: 10px 14px; border-radius: 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-break: break-word; max-width: 100%; }
+        .msg-box.self .msg-content { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        
+        .bubble-default { background: white; }
+        .bubble-pink { background: #FFB6C1; color: #333; }
+        .bubble-blue { background: #87CEEB; color: #333; }
+        .bubble-purple { background: #DDA0DD; color: #333; }
+        .bubble-gold { background: linear-gradient(135deg, #FFD700, #FFA500); color: #333; }
+        .bubble-rainbow { background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet); color: white; animation: bubbleFlow 3s linear infinite; background-size: 200%; }
+        .bubble-dark { background: #2C3E50; color: white; }
+        @keyframes bubbleFlow { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+        
+        .msg-box.self .bubble-pink, .msg-box.self .bubble-blue, .msg-box.self .bubble-purple, 
+        .msg-box.self .bubble-gold, .msg-box.self .bubble-rainbow, .msg-box.self .bubble-dark {
+            color: white;
+        }
+        
+        .tail-default::after { display: none; }
+        .tail-star::after { content: '⭐'; display: block; font-size: 12px; bottom: -15px; right: 10px; position: absolute; }
+        .tail-heart::after { content: '❤️'; display: block; font-size: 12px; bottom: -15px; right: 10px; position: absolute; }
+        .tail-fire::after { content: '🔥'; display: block; font-size: 12px; bottom: -15px; right: 10px; position: absolute; }
+        .tail-crown::after { content: '👑'; display: block; font-size: 12px; bottom: -15px; right: 10px; position: absolute; }
+        
+        .user-name { font-size: 11px; color: #666; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .msg-box.self .user-name { justify-content: flex-end; color: #ccc; }
+        
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; color: white; white-space: nowrap; display: inline-block;}
+        .c-green { background: #2ecc71; }
+        .c-blue { background: #3498db; }
+        .c-red { background: #e74c3c; }
+        .c-purple { background: #9b59b6; }
+        .c-orange { background: #e67e22; }
+        .c-pink { background: #ff9ff3; color: #5f27cd; border: 1px solid #f368e0; }
+        .c-cyan { background: #00cec9; color: #2d3436; }
+        .c-black { background: #2d3436; color: #f1c40f; border: 1px solid #636e72; }
+        .c-gold { background: linear-gradient(45deg, #f1c40f, #e67e22); }
+        .c-rainbow { background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff); background-size: 300%; animation: glow 3s infinite; }
+        .c-darkglow { background: linear-gradient(45deg, #000, #8b0000, #000); background-size: 200%; animation: glow 3s infinite; border: 1px solid red; color: #ffcccc; }
+        
+        .medal { padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: bold; display: inline-block; white-space: nowrap; animation: medalGlow 1s ease-in-out infinite alternate; }
+        @keyframes medalGlow { from { box-shadow: 0 0 2px currentColor; } to { box-shadow: 0 0 8px currentColor; } }
+        
+        .medal-legend { background: linear-gradient(135deg, #FFD700, #FFA500); color: #fff; }
+        .medal-mythic { background: linear-gradient(135deg, #FF0066, #FF44CC); color: white; }
+        .medal-dragon { background: linear-gradient(135deg, #FF4D4D, #FF0000); color: white; animation: shake 0.5s ease-in-out infinite alternate; }
+        .medal-phoenix { background: linear-gradient(135deg, #FF8C00, #FF4500); color: white; animation: fireGlow 1s infinite; }
+        .medal-void { background: linear-gradient(135deg, #2C3E50, #1A1A2E); color: #00FFFF; border: 1px solid #00FFFF; }
+        .medal-celestial { background: linear-gradient(135deg, #4169E1, #6A5ACD); color: white; animation: starTwinkle 1s infinite; }
+        .medal-royal { background: linear-gradient(135deg, #9B59B6, #8E44AD); color: #FFD700; border: 1px solid #FFD700; }
+        .medal-shadow { background: linear-gradient(135deg, #34495E, #2C3E50); color: #95A5A6; }
+        .medal-thunder { background: linear-gradient(135deg, #FFD700, #FFB347); color: #2C3E50; animation: thunderFlash 0.5s infinite; }
+        .medal-ice { background: linear-gradient(135deg, #00CED1, #1E90FF); color: white; animation: iceShine 1s infinite; }
+        .medal-flame { background: linear-gradient(135deg, #FF6B6B, #FF4757); color: white; animation: flameFlicker 0.3s infinite; }
+        .medal-nature { background: linear-gradient(135deg, #2ECC71, #27AE60); color: #FFF9C4; }
+        .medal-moon { background: linear-gradient(135deg, #4B0082, #9400D3); color: #E6E6FA; animation: moonGlow 2s infinite; }
+        .medal-sun { background: linear-gradient(135deg, #FFA500, #FF6347); color: #FFF; animation: sunPulse 1s infinite; }
+        .medal-star { background: linear-gradient(135deg, #FFD700, #FFB6C1); color: #4B0082; animation: starSpin 2s infinite; }
+        .medal-neon { background: linear-gradient(135deg, #00FF00, #00FF88); color: #000; animation: neonPulse 0.5s infinite; }
+        .medal-blood { background: linear-gradient(135deg, #8B0000, #DC143C); color: #FFA07A; animation: bloodDrip 1s infinite; }
+        .medal-ghost { background: linear-gradient(135deg, #708090, #2F4F4F); color: #E0E0E0; animation: ghostFade 2s infinite; }
+        .medal-cyber { background: linear-gradient(135deg, #00FFFF, #00FFCC); color: #000; animation: cyberGlitch 0.1s infinite; }
+        .medal-divine { background: linear-gradient(135deg, #FF69B4, #FFB6C1); color: #FFF; animation: divineLight 1s infinite; }
+        
+        @keyframes shake { from { transform: translateX(0); } to { transform: translateX(2px); } }
+        @keyframes fireGlow { 0% { text-shadow: 0 0 2px #FF4500; } 100% { text-shadow: 0 0 10px #FF8C00; } }
+        @keyframes starTwinkle { 0% { opacity: 0.8; } 100% { opacity: 1; } }
+        @keyframes thunderFlash { 0% { filter: brightness(1); } 100% { filter: brightness(1.3); } }
+        @keyframes iceShine { 0% { text-shadow: 0 0 0 #00CED1; } 100% { text-shadow: 0 0 8px #00CED1; } }
+        @keyframes flameFlicker { 0% { filter: brightness(1); } 50% { filter: brightness(1.2); } 100% { filter: brightness(1); } }
+        @keyframes moonGlow { 0% { box-shadow: 0 0 2px #9400D3; } 100% { box-shadow: 0 0 10px #9400D3; } }
+        @keyframes sunPulse { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
+        @keyframes starSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes neonPulse { 0% { text-shadow: 0 0 2px #00FF00; } 100% { text-shadow: 0 0 10px #00FF00; } }
+        @keyframes bloodDrip { 0% { background-position: 0% 0%; } 100% { background-position: 0% 100%; } }
+        @keyframes ghostFade { 0% { opacity: 0.7; } 100% { opacity: 1; } }
+        @keyframes cyberGlitch { 0% { transform: skew(0deg); } 25% { transform: skew(1deg); } 75% { transform: skew(-1deg); } 100% { transform: skew(0deg); } }
+        @keyframes divineLight { 0% { filter: brightness(1); } 100% { filter: brightness(1.2); } }
+        @keyframes glow { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+        
+        #input-area { display: flex; padding: 12px; background: white; border-top: 1px solid #ddd; gap: 8px; align-items: center; }
+        #input-area input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 25px; outline: none; font-size: 14px; }
+        .icon-btn { background: #f0f2f5; border: none; font-size: 24px; cursor: pointer; padding: 8px 12px; border-radius: 25px; transition: all 0.2s; }
+        .icon-btn:hover { background: #e0e0e0; transform: scale(1.05); }
+        .send-btn { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; transition: transform 0.2s; }
+        .send-btn:hover { transform: scale(1.05); }
+        
+        #emoji-panel { display: none; position: absolute; bottom: 70px; left: 10px; background: white; border: 1px solid #ddd; border-radius: 15px; padding: 10px; width: 250px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); flex-wrap: wrap; gap: 8px; z-index: 1000; }
+        .emoji-item { cursor: pointer; font-size: 24px; padding: 5px; transition: transform 0.2s; }
+        .emoji-item:hover { transform: scale(1.2); }
+        
+        #shop-panel { position: fixed; right: 0; top: 0; width: 350px; height: 100vh; background: white; box-shadow: -2px 0 20px rgba(0,0,0,0.15); transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1001; display: flex; flex-direction: column; }
+        #shop-panel.open { transform: translateX(0); }
+        .shop-header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .shop-header h3 { margin: 0; font-size: 18px; }
+        .close-shop { cursor: pointer; font-size: 24px; }
+        .shop-content { flex: 1; overflow-y: auto; padding: 15px; }
+        .shop-category { margin-bottom: 20px; }
+        .shop-category h4 { color: #667eea; margin-bottom: 10px; border-bottom: 2px solid #667eea; padding-bottom: 5px; }
+        .shop-item { background: #f8f9fa; border-radius: 10px; padding: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .shop-item-info { flex: 1; }
+        .shop-item-name { font-weight: bold; margin-bottom: 5px; }
+        .shop-item-price { color: #f39c12; font-size: 12px; }
+        .shop-item-price::before { content: '💰 '; }
+        .buy-btn { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 5px 15px; border-radius: 15px; cursor: pointer; font-size: 12px; transition: transform 0.2s; }
+        .buy-btn:hover { transform: scale(1.05); }
+        .equipped { background: #2ecc71; color: white; padding: 5px 10px; border-radius: 15px; font-size: 11px; }
+        
+        .private-notification { position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 20px; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); z-index: 2000; animation: slideIn 0.3s ease; max-width: 300px; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        #leaderboard-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1002; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 90%; max-width: 700px; height: 85vh; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; }
+        .modal-header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; text-align: center; font-weight: bold; position: relative; }
+        .close-btn { position: absolute; right: 15px; top: 15px; cursor: pointer; font-size: 20px; }
+        .tabs { display: flex; background: #f0f2f5; border-bottom: 2px solid #ddd; overflow-x: auto; }
+        .tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; font-weight: bold; transition: all 0.2s; white-space: nowrap; }
+        .tab.active { background: white; color: #667eea; border-bottom: 2px solid #667eea; }
+        .tab-content { flex: 1; overflow-y: auto; padding: 15px; display: none; }
+        .tab-content.active { display: block; }
+        .rank-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        .rank-num { font-size: 20px; font-weight: bold; width: 40px; }
+        .rank-num.top1 { color: #FFD700; text-shadow: 0 0 5px gold; }
+        .rank-num.top2 { color: #C0C0C0; }
+        .rank-num.top3 { color: #CD7F32; }
+        .badge-item { background: white; border: 1px solid #eee; border-radius: 10px; padding: 12px; margin-bottom: 10px; display: inline-block; width: calc(33% - 8px); margin: 4px; vertical-align: top; }
+        .btn-sm { padding: 5px 12px; border-radius: 15px; font-size: 12px; cursor: pointer; border: none; color: white; margin: 2px; }
+        
+        #avatar-input { display: none; }
+        .delete-btn { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 11px; padding: 0 5px; }
+        .delete-btn:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <div id="login-container">
+        <div class="login-box">
+            <h2>✨ 炫酷聊天室 ✨</h2>
+            <p style="color:#888; margin-bottom:20px;">快乐 开心 最重要</p>
+            <input type="text" id="username" placeholder="昵称">
+            <input type="password" id="password" placeholder="密码">
+            <input type="text" id="invite" placeholder="邀请码(默认666)" value="666">
+            <button class="btn-login" onclick="login()">🚀 进入聊天室</button>
+            <button class="btn-register" onclick="register()">📝 注册新账号</button>
+        </div>
+    </div>
+
+    <div id="chat-container">
+        <div id="header">
+            <div class="header-left">
+                <div id="avatar-frame" class="avatar-frame">
+                    <img id="current-avatar" class="current-avatar" onclick="openAvatarUpload()" alt="头像">
+                </div>
+                <div class="header-info">
+                    <h3 id="current-username-display"></h3>
+                    <p>点击头像换图 | 快乐聊天</p>
+                </div>
+            </div>
+            <div class="header-buttons">
+                <div class="coin-display" id="coin-display">💰 0</div>
+                <button class="header-btn" onclick="showChangeNameDialog()">✏️ 改名</button>
+                <button class="header-btn" onclick="openShop()">🛒 商城</button>
+                <button class="header-btn" onclick="openLeaderboard()">🏆 排行</button>
+            </div>
+        </div>
+        
+        <div id="marquee-container"><span id="marquee">📢 系统通告加载中...</span></div>
+
+        <div id="admin-panel"></div>
+
+        <div id="messages"></div>
+
+        <div id="input-area">
+            <input type="file" id="image-input" accept="image/*" style="display: none;" onchange="uploadImage()">
+            <input type="file" id="avatar-input" accept="image/*" style="display: none;" onchange="uploadAvatar()">
+            <button class="icon-btn" onclick="document.getElementById('image-input').click()">🖼️</button>
+            <button class="icon-btn" onclick="toggleEmoji()">😀</button>
+            <input type="text" id="msg-input" placeholder="输入聊天内容..." onkeypress="if(event.key === 'Enter') sendMsg()">
+            <button class="send-btn" onclick="sendMsg()">发送</button>
+        </div>
+
+        <div id="emoji-panel">
+            <span class="emoji-item" onclick="insertEmoji('😊')">😊</span>
+            <span class="emoji-item" onclick="insertEmoji('😂')">😂</span>
+            <span class="emoji-item" onclick="insertEmoji('😍')">😍</span>
+            <span class="emoji-item" onclick="insertEmoji('🔥')">🔥</span>
+            <span class="emoji-item" onclick="insertEmoji('🎉')">🎉</span>
+            <span class="emoji-item" onclick="insertEmoji('❤️')">❤️</span>
+            <span class="emoji-item" onclick="insertEmoji('💀')">💀</span>
+            <span class="emoji-item" onclick="insertEmoji('👑')">👑</span>
+            <span class="emoji-item" onclick="insertEmoji('⭐')">⭐</span>
+            <span class="emoji-item" onclick="insertEmoji('🌈')">🌈</span>
+        </div>
+    </div>
+
+    <div id="shop-panel">
+        <div class="shop-header">
+            <h3>🛒 商城 | 我的金币: <span id="shop-coins">0</span></h3>
+            <span class="close-shop" onclick="closeShop()">×</span>
+        </div>
+        <div class="shop-content" id="shop-content"></div>
+    </div>
+
+    <div id="leaderboard-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                🏆 荣誉殿堂 & 图鉴
+                <span class="close-btn" onclick="document.getElementById('leaderboard-modal').style.display='none'">&times;</span>
+            </div>
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('daily')">🔥 日榜</div>
+                <div class="tab" onclick="switchTab('weekly')">⚡ 周榜</div>
+                <div class="tab" onclick="switchTab('rich')">💰 财富榜</div>
+                <div class="tab" onclick="switchTab('stats')">📜 图鉴</div>
+            </div>
+            <div id="tab-daily" class="tab-content active"></div>
+            <div id="tab-weekly" class="tab-content"></div>
+            <div id="tab-rich" class="tab-content"></div>
+            <div id="tab-stats" class="tab-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentUser = "";
+        let isAdmin = false;
+        let userCoins = 0;
+        let userBubble = "bubble-default";
+        let userTail = "tail-default";
+        let userFrame = "";
+
+        const SHOP_ITEMS = {
+            bubbles: [
+                { name: "默认气泡", id: "bubble-default", price: 0, desc: "经典白色气泡" },
+                { name: "梦幻粉红", id: "bubble-pink", price: 500, desc: "粉嫩可爱的气泡" },
+                { name: "天空之蓝", id: "bubble-blue", price: 500, desc: "清新蓝色气泡" },
+                { name: "神秘紫色", id: "bubble-purple", price: 500, desc: "高贵紫色气泡" },
+                { name: "黄金贵族", id: "bubble-gold", price: 1000, desc: "闪耀金色气泡" },
+                { name: "彩虹流光", id: "bubble-rainbow", price: 2000, desc: "炫彩彩虹气泡" },
+                { name: "暗夜星辰", id: "bubble-dark", price: 800, desc: "深邃暗黑气泡" }
+            ],
+            tails: [
+                { name: "无尾灯", id: "tail-default", price: 0, desc: "默认无特效" },
+                { name: "星光闪耀", id: "tail-star", price: 300, desc: "⭐ 星星尾灯" },
+                { name: "爱心飞舞", id: "tail-heart", price: 300, desc: "❤️ 爱心尾灯" },
+                { name: "火焰之舞", id: "tail-fire", price: 500, desc: "🔥 火焰尾灯" },
+                { name: "皇冠加冕", id: "tail-crown", price: 800, desc: "👑 皇冠尾灯" }
+            ],
+            frames: [
+                { name: "无边框", id: "", price: 0, desc: "默认无边框" },
+                { name: "黄金边框", id: "frame-gold", price: 500, desc: "闪耀金色边框" },
+                { name: "白银边框", id: "frame-silver", price: 300, desc: "典雅银色边框" },
+                { name: "彩虹边框", id: "frame-rainbow", price: 1500, desc: "炫彩彩虹边框" },
+                { name: "钻石边框", id: "frame-diamond", price: 2000, desc: "璀璨钻石边框" },
+                { name: "烈焰边框", id: "frame-flame", price: 1000, desc: "🔥 火焰边框" }
+            ]
+        };
+
+        const PRESET_MEDALS = {
+            "👑 传奇王者": "medal-legend",
+            "✨ 神话传说": "medal-mythic",
+            "🐉 屠龙勇士": "medal-dragon",
+            "🔥 不死凤凰": "medal-phoenix",
+            "🌑 虚空行者": "medal-void",
+            "⭐ 星辰使者": "medal-celestial",
+            "👸 皇家贵族": "medal-royal",
+            "🌙 暗影刺客": "medal-shadow",
+            "⚡ 雷霆战神": "medal-thunder",
+            "❄️ 冰霜女皇": "medal-ice",
+            "🔥 烈焰魔王": "medal-flame",
+            "🌿 自然守护": "medal-nature",
+            "🌙 月神祝福": "medal-moon",
+            "☀️ 太阳之子": "medal-sun",
+            "⭐ 星光璀璨": "medal-star",
+            "💚 霓虹未来": "medal-neon",
+            "🩸 血族亲王": "medal-blood",
+            "👻 幽灵鬼魅": "medal-ghost",
+            "🤖 赛博朋克": "medal-cyber",
+            "✨ 神圣天使": "medal-divine"
+        };
+
+        function register() {
+            let user = document.getElementById('username').value.trim();
+            let pass = document.getElementById('password').value.trim();
+            if(!user || !pass) return alert("请填写完整！");
+            socket.emit('register', { user, pass }, res => alert(res.msg));
+        }
+
+        function login() {
+            let user = document.getElementById('username').value.trim();
+            let pass = document.getElementById('password').value.trim();
+            let inviteCode = document.getElementById('invite').value.trim() || "666";
+            
+            socket.emit('login', { user, pass, inviteCode }, res => {
+                if(res.status === 'ok') {
+                    currentUser = user;
+                    isAdmin = res.isAdmin;
+                    userCoins = res.userData.coins || 100;
+                    userBubble = res.userData.bubble || "bubble-default";
+                    userTail = res.userData.tail || "tail-default";
+                    userFrame = res.userData.frame || "";
+                    
+                    document.getElementById('login-container').style.display = 'none';
+                    document.getElementById('chat-container').style.display = 'flex';
+                    document.getElementById('current-username-display').innerText = user;
+                    document.getElementById('current-avatar').src = res.userData.avatar;
+                    updateCoinDisplay();
+                    updateAvatarFrame();
+                    
+                    if(isAdmin) renderAdminPanel();
+                    res.history.forEach(renderMsg);
+                    socket.emit('set user', user);
+                } else { alert(res.msg); }
+            });
+        }
+
+        function updateCoinDisplay() {
+            document.getElementById('coin-display').innerHTML = `💰 ${userCoins}`;
+            let shopCoins = document.getElementById('shop-coins');
+            if(shopCoins) shopCoins.innerText = userCoins;
+        }
+
+        function updateAvatarFrame() {
+            let frameDiv = document.getElementById('avatar-frame');
+            frameDiv.className = 'avatar-frame ' + userFrame;
+        }
+
+        function openAvatarUpload() {
+            document.getElementById('avatar-input').click();
+        }
+
+        function uploadAvatar() {
+            let file = document.getElementById('avatar-input').files[0];
+            if(!file) return;
+            if(file.size > 2 * 1024 * 1024) {
+                alert("图片大小不能超过2MB！");
+                return;
+            }
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                let avatarData = e.target.result;
+                document.getElementById('current-avatar').src = avatarData;
+                socket.emit('change avatar', { user: currentUser, avatarData: avatarData });
+                alert("头像更新成功！");
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showChangeNameDialog() {
+            let newName = prompt("请输入新昵称（2-12个字符）:", currentUser);
+            if(newName && newName.trim() && newName !== currentUser) {
+                if(newName.length < 2 || newName.length > 12) {
+                    alert("昵称长度需在2-12个字符之间");
+                    return;
+                }
+                if(/[<>'"]/.test(newName)) {
+                    alert("昵称不能包含特殊字符 < > ' \"");
+                    return;
+                }
+                socket.emit('change name', { oldName: currentUser, newName: newName.trim() }, (res) => {
+                    if(res.status === 'ok') {
+                        alert(`改名成功！新昵称：${newName}`);
+                        currentUser = newName;
+                        document.getElementById('current-username-display').innerText = newName;
+                    } else {
+                        alert(res.msg);
+                    }
+                });
+            }
+        }
+
+        function openShop() {
+            let panel = document.getElementById('shop-panel');
+            panel.classList.add('open');
+            renderShop();
+        }
+
+        function closeShop() {
+            document.getElementById('shop-panel').classList.remove('open');
+        }
+
+        function renderShop() {
+            let content = document.getElementById('shop-content');
+            if(!content) return;
+            content.innerHTML = `
+                <div class="shop-category">
+                    <h4>💬 气泡皮肤</h4>
+                    ${SHOP_ITEMS.bubbles.map(item => `
+                        <div class="shop-item">
+                            <div class="shop-item-info">
+                                <div class="shop-item-name">${item.name}</div>
+                                <div class="shop-item-price">${item.price} 金币</div>
+                                <div style="font-size:11px; color:#888;">${item.desc}</div>
+                            </div>
+                            ${userBubble === item.id ? '<span class="equipped">已装备</span>' : 
+                              `<button class="buy-btn" onclick="buyItem('bubble', '${item.id}', ${item.price})">购买</button>`}
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="shop-category">
+                    <h4>✨ 尾灯特效</h4>
+                    ${SHOP_ITEMS.tails.map(item => `
+                        <div class="shop-item">
+                            <div class="shop-item-info">
+                                <div class="shop-item-name">${item.name}</div>
+                                <div class="shop-item-price">${item.price} 金币</div>
+                                <div style="font-size:11px; color:#888;">${item.desc}</div>
+                            </div>
+                            ${userTail === item.id ? '<span class="equipped">已装备</span>' : 
+                              `<button class="buy-btn" onclick="buyItem('tail', '${item.id}', ${item.price})">购买</button>`}
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="shop-category">
+                    <h4>🖼️ 头像框</h4>
+                    ${SHOP_ITEMS.frames.map(item => `
+                        <div class="shop-item">
+                            <div class="shop-item-info">
+                                <div class="shop-item-name">${item.name}</div>
+                                <div class="shop-item-price">${item.price} 金币</div>
+                                <div style="font-size:11px; color:#888;">${item.desc}</div>
+                            </div>
+                            ${userFrame === item.id ? '<span class="equipped">已装备</span>' : 
+                              `<button class="buy-btn" onclick="buyItem('frame', '${item.id}', ${item.price})">购买</button>`}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function buyItem(type, itemId, price) {
+            if(userCoins < price) {
+                alert(`金币不足！需要 ${price} 金币，你只有 ${userCoins} 金币`);
+                return;
+            }
+            socket.emit('buy item', { user: currentUser, type: type, itemId: itemId, price: price }, (res) => {
+                if(res.status === 'ok') {
+                    userCoins = res.newCoins;
+                    if(type === 'bubble') userBubble = itemId;
+                    if(type === 'tail') userTail = itemId;
+                    if(type === 'frame') userFrame = itemId;
+                    updateCoinDisplay();
+                    updateAvatarFrame();
+                    renderShop();
+                    alert(`购买成功！已装备 ${res.itemName}`);
+                } else {
+                    alert(res.msg);
+                }
+            });
+        }
+
+        function toggleEmoji() {
+            let panel = document.getElementById('emoji-panel');
+            panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+        }
+        
+        function insertEmoji(emoji) {
+            document.getElementById('msg-input').value += emoji;
+            toggleEmoji();
+        }
+
+        function sendMsg() {
+            let input = document.getElementById('msg-input');
+            let msg = input.value.trim();
+            if(msg) {
+                socket.emit('chat message', { 
+                    user: currentUser, 
+                    type: 'text', 
+                    content: msg,
+                    bubble: userBubble,
+                    tail: userTail
+                });
+                input.value = '';
+            }
+        }
+
+        function uploadImage() {
+            let file = document.getElementById('image-input').files[0];
+            if(!file) return;
+            if(file.size > 5 * 1024 * 1024) {
+                alert("图片大小不能超过5MB！");
+                return;
+            }
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                socket.emit('chat message', { 
+                    user: currentUser, 
+                    type: 'image', 
+                    content: e.target.result,
+                    bubble: userBubble,
+                    tail: userTail
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        socket.on('chat message', renderMsg);
+
+        function renderMsg(data) {
+            let box = document.createElement('div');
+            let tailClass = data.tail || 'tail-default';
+            box.className = `msg-box ${data.user === currentUser ? 'self' : ''} ${tailClass}`;
+            box.id = 'msg-' + data.id;
+            
+            let authsHtml = '';
+            if (data.auths && data.auths.length > 0) {
+                data.auths.forEach(auth => {
+                    if (PRESET_MEDALS[auth.text]) {
+                        let medalClass = PRESET_MEDALS[auth.text];
+                        authsHtml += `<span class="medal ${medalClass}">${escapeHtml(auth.text)}</span> `;
+                    } else {
+                        let badgeClass = auth.colorClass || 'c-green';
+                        authsHtml += `<span class="badge ${badgeClass}">${escapeHtml(auth.text)}</span> `;
+                    }
+                });
+            }
+
+            let bubbleClass = data.bubble || 'bubble-default';
+            let contentHtml = data.type === 'image' 
+                ? `<img src="${data.content}" class="msg-image" onclick="window.open('${data.content}')" style="max-width:200px; border-radius:10px; cursor:pointer;">` 
+                : `<div class="msg-content ${bubbleClass}">${escapeHtml(data.content)}</div>`;
+                
+            let deleteHtml = isAdmin ? `<button class="delete-btn" onclick="deleteMsg('${data.id}')">🗑️删除</button>` : '';
+
+            let frameClass = data.frame ? `avatar-frame ${data.frame}` : 'avatar-frame';
+            
+            box.innerHTML = `<div class="${frameClass}"><img src="${data.avatar}" class="avatar" onclick="alert('${escapeHtml(data.user)}')"></div>
+                <div>
+                    <div class="user-name">${escapeHtml(data.user)} ${authsHtml} <span style="font-size:9px;color:#aaa;">${data.time}</span> ${deleteHtml}</div>
+                    ${contentHtml}
+                </div>`;
+            
+            let msgDiv = document.getElementById('messages');
+            msgDiv.appendChild(box);
+            setTimeout(() => { msgDiv.scrollTop = msgDiv.scrollHeight; }, 100);
+        }
+
+        function escapeHtml(text) {
+            let div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showPrivateNotification(title, message) {
+            let notif = document.createElement('div');
+            notif.className = 'private-notification';
+            notif.innerHTML = `<strong>${escapeHtml(title)}</strong><br>${escapeHtml(message)}`;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 5000);
+        }
+
+        socket.on('private notification', (data) => {
+            showPrivateNotification(data.title, data.message);
+            if(data.coins !== undefined) {
+                userCoins = data.coins;
+                updateCoinDisplay();
+            }
+        });
+
+        function renderAdminPanel() {
+            let panel = document.getElementById('admin-panel');
+            if(!panel) return;
+            panel.style.display = 'block';
+            panel.innerHTML = `
+                <div class="admin-section">
+                    <b>💰 金币管理</b><br>
+                    <select id="select-user-coin" class="admin-select"><option value="">--选玩家--</option></select>
+                    <input type="number" id="coin-amount" placeholder="金币数量" style="width:80px; padding:4px;">
+                    <button onclick="giveCoins()" class="btn-sm" style="background:#f39c12;">🎁 赠送金币</button>
+                </div>
+                <div class="admin-section">
+                    <b>📜 官方认证管理</b><br>
+                    <input type="text" id="new-badge-name" placeholder="认证名" style="width:100px; padding:4px;">
+                    <select id="new-badge-color" class="admin-select">
+                        <option value="c-green">草地绿</option>
+                        <option value="c-blue">天空蓝</option>
+                        <option value="c-red">苹果红</option>
+                        <option value="c-purple">葡萄紫</option>
+                        <option value="c-orange">活力橙</option>
+                        <option value="c-pink">猛男粉</option>
+                        <option value="c-cyan">深海青</option>
+                        <option value="c-black">黑金贵族</option>
+                        <option value="c-gold">闪耀金</option>
+                        <option value="c-rainbow">至尊彩虹流光</option>
+                        <option value="c-darkglow">暗红流光</option>
+                    </select>
+                    <button onclick="createBadge()" class="btn-sm" style="background:#0984e3;">创建认证</button>
+                    <select id="select-user-badge" class="admin-select"><option value="">--选玩家--</option></select>
+                    <select id="select-badge-name" class="admin-select"><option value="">--选认证--</option></select>
+                    <button onclick="giveBadge('give')" class="btn-sm" style="background:#00b894;">发放认证</button>
+                    <button onclick="giveBadge('remove')" class="btn-sm" style="background:#d63031;">清空认证</button>
+                </div>
+                <div class="admin-section">
+                    <b>🎖️ 炫酷徽章管理</b><br>
+                    <select id="select-user-medal" class="admin-select"><option value="">--选玩家--</option></select>
+                    <select id="select-medal-name" class="admin-select">
+                        <option value="">--选徽章--</option>
+                        ${Object.keys(PRESET_MEDALS).map(m => `<option value="${m}">${m}</option>`).join('')}
+                    </select>
+                    <button onclick="giveMedal('give')" class="btn-sm" style="background:#00b894;">🎁 发放徽章</button>
+                    <button onclick="giveMedal('remove')" class="btn-sm" style="background:#e67e22;">🗑️ 收回徽章</button>
+                    <button onclick="giveMedal('clear')" class="btn-sm" style="background:#d63031;">💢 清空全部</button>
+                </div>
+                <div class="admin-section">
+                    <b>⚙️ 其他管理</b>
+                    <button onclick="adminSettle()" class="btn-sm" style="background:#e17055;">🏆 结算榜单</button>
+                    <button onclick="adminClearMessages()" class="btn-sm" style="background:#e74c3c;">🗑️ 清空聊天记录</button>
+                </div>
+            `;
+            
+            socket.emit('get users list', (users) => {
+                let options = '<option value="">--选玩家--</option>' + users.map(u => `<option value="${u}">${u}</option>`).join('');
+                let selectCoin = document.getElementById('select-user-coin');
+                let selectBadge = document.getElementById('select-user-badge');
+                let selectMedal = document.getElementById('select-user-medal');
+                if(selectCoin) selectCoin.innerHTML = options;
+                if(selectBadge) selectBadge.innerHTML = options;
+                if(selectMedal) selectMedal.innerHTML = options;
+            });
+            
+            socket.emit('get badges list', (badges) => {
+                let select = document.getElementById('select-badge-name');
+                if(select) {
+                    select.innerHTML = '<option value="">--选认证--</option>' + badges.map(b => `<option value="${b}">${b}</option>`).join('');
+                }
+            });
+        }
+
+        function giveCoins() {
+            let target = document.getElementById('select-user-coin').value;
+            let amount = parseInt(document.getElementById('coin-amount').value);
+            let pass = document.getElementById('invite').value.trim();
+            if(!target) return alert("请选择玩家！");
+            if(!amount || amount <= 0) return alert("请输入正数金币数量！");
+            socket.emit('admin give coins', { adminPass: pass, targetUser: target, amount: amount }, (res) => {
+                alert(res.msg);
+            });
+        }
+
+        function createBadge() {
+            let name = document.getElementById('new-badge-name').value.trim();
+            let color = document.getElementById('new-badge-color').value;
+            let pass = document.getElementById('invite').value.trim();
+            if(!name) return alert("请输入认证名称！");
+            socket.emit('admin create badge', { adminPass: pass, name: name, colorClass: color });
+            document.getElementById('new-badge-name').value = '';
+        }
+
+        function giveBadge(type) {
+            let target = document.getElementById('select-user-badge').value;
+            let badgeName = document.getElementById('select-badge-name').value;
+            let pass = document.getElementById('invite').value.trim();
+            if(!target) return alert("请先选择玩家！");
+            if(type === 'give' && !badgeName) return alert("请先选择认证！");
+            socket.emit('admin give auth', { adminPass: pass, targetUser: target, type: type, badgeName: badgeName }, (res) => {
+                alert(res.msg);
+                if(res.status === 'ok') openLeaderboard();
+            });
+        }
+
+        function giveMedal(type) {
+            let target = document.getElementById('select-user-medal').value;
+            let medalName = document.getElementById('select-medal-name').value;
+            let pass = document.getElementById('invite').value.trim();
+            if(!target) return alert("请先选择玩家！");
+            if(type === 'give' && !medalName) return alert("请先选择徽章！");
+            socket.emit('admin give medal', { adminPass: pass, targetUser: target, type: type, medalName: medalName }, (res) => {
+                alert(res.msg);
+                if(res.status === 'ok') openLeaderboard();
+            });
+        }
+
+        function adminSettle() {
+            let pass = document.getElementById('invite').value.trim();
+            if(confirm("确定要结算榜单并全服发奖吗？")) socket.emit('admin trigger settle', { adminPass: pass });
+        }
+
+        function adminClearMessages() {
+            let pass = document.getElementById('invite').value.trim();
+            if(confirm("确定要清空所有聊天记录吗？此操作不可恢复！")) {
+                socket.emit('admin clear messages', { adminPass: pass });
+            }
+        }
+
+        socket.on('update users list', (users) => {
+            if(isAdmin) {
+                let options = '<option value="">--选玩家--</option>' + users.map(u => `<option value="${u}">${u}</option>`).join('');
+                let selectCoin = document.getElementById('select-user-coin');
+                let selectBadge = document.getElementById('select-user-badge');
+                let selectMedal = document.getElementById('select-user-medal');
+                if(selectCoin) selectCoin.innerHTML = options;
+                if(selectBadge) selectBadge.innerHTML = options;
+                if(selectMedal) selectMedal.innerHTML = options;
+            }
+        });
+
+        socket.on('update badges list', (badges) => {
+            if(isAdmin && document.getElementById('select-badge-name')) {
+                let select = document.getElementById('select-badge-name');
+                select.innerHTML = '<option value="">--选认证--</option>' + badges.map(b => `<option value="${b}">${b}</option>`).join('');
+            }
+        });
+
+        socket.on('delete message', (msgId) => {
+            let el = document.getElementById('msg-' + msgId);
+            if(el) el.remove();
+        });
+
+        function deleteMsg(msgId) {
+            let pass = document.getElementById('invite').value.trim();
+            if(confirm("确定要全服删除这条消息吗？")) {
+                socket.emit('admin delete message', { adminPass: pass, msgId: msgId });
+            }
+        }
+
+        socket.on('announcement', text => document.getElementById('marquee').innerText = text);
+        socket.on('system msg', text => {
+            let div = document.createElement('div');
+            div.style = "text-align:center; color:#888; font-size:12px; margin: 10px 0;";
+            div.innerText = text;
+            document.getElementById('messages').appendChild(div);
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+        });
+
+        function switchTab(tabId) {
+            let tabs = document.querySelectorAll('.tab');
+            let contents = document.querySelectorAll('.tab-content');
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+            if(event && event.target) event.target.classList.add('active');
+            let targetContent = document.getElementById('tab-' + tabId);
+            if(targetContent) targetContent.classList.add('active');
+        }
+
+        function openLeaderboard() {
+            let modal = document.getElementById('leaderboard-modal');
+            if(modal) modal.style.display = 'flex';
+            socket.emit('get data panels', (data) => {
+                let renderList = (arr, empty) => arr.length ? arr.map((u,i) => `
+                    <div class="rank-item">
+                        <div class="rank-num ${i<3?'top'+(i+1):''}">${i+1}</div>
+                        <img src="${u.avatar}" style="width:35px; height:35px; border-radius:50%; margin-right:10px;">
+                        <div style="flex:1;"><strong>${escapeHtml(u.name)}</strong></div>
+                        <div style="color:#667eea; font-weight:bold;">${u.score} 次</div>
+                    </div>
+                `).join('') : `<p style="text-align:center;color:#999;">${empty}</p>`;
+                
+                let dailyDiv = document.getElementById('tab-daily');
+                let weeklyDiv = document.getElementById('tab-weekly');
+                if(dailyDiv) dailyDiv.innerHTML = renderList(data.boards.dailyBoard.map(u=>({name:u.name, avatar:u.avatar, score:u.stats.daily})), "今日暂无数据");
+                if(weeklyDiv) weeklyDiv.innerHTML = renderList(data.boards.weeklyBoard.map(u=>({name:u.name, avatar:u.avatar, score:u.stats.weekly})), "本周暂无数据");
+                
+                let richDiv = document.getElementById('tab-rich');
+                if(richDiv && data.richBoard) {
+                    richDiv.innerHTML = data.richBoard.length ? data.richBoard.map((u,i) => `
+                        <div class="rank-item">
+                            <div class="rank-num ${i<3?'top'+(i+1):''}">${i+1}</div>
+                            <img src="${u.avatar}" style="width:35px; height:35px; border-radius:50%; margin-right:10px;">
+                            <div style="flex:1;"><strong>${escapeHtml(u.name)}</strong></div>
+                            <div style="color:#f39c12; font-weight:bold;">💰 ${u.coins} 金币</div>
+                        </div>
+                    `).join('') : '<p style="text-align:center;color:#999;">暂无财富数据</p>';
+                }
+
+                let statsDiv = document.getElementById('tab-stats');
+                if(statsDiv) {
+                    let sHtml = `<h4 style="margin:10px 0;">📜 官方认证</h4><div style="display:flex; flex-wrap:wrap;">`;
+                    let hasBadges = false;
+                    for(let title in data.stats.badgeDirectory) {
+                        if(!PRESET_MEDALS[title]) {
+                            hasBadges = true;
+                            let info = data.stats.badgeDirectory[title];
+                            let badgeClass = info.colorClass || 'c-green';
+                            sHtml += `
+                                <div class="badge-item">
+                                    <div style="margin-bottom:8px;"><span class="badge ${badgeClass}" style="font-size:14px; padding:4px 12px;">${escapeHtml(title)}</span></div>
+                                    <div style="font-size:12px; color:#666;">👥 获得: ${info.count} 人</div>
+                                </div>
+                            `;
+                        }
+                    }
+                    if(!hasBadges) sHtml += `<p style="color:#999; width:100%;">暂无官方认证</p>`;
+                    sHtml += `</div><h4 style="margin:10px 0;">🎖️ 炫酷徽章</h4><div style="display:flex; flex-wrap:wrap;">`;
+                    
+                    let hasMedals = false;
+                    for(let title in data.stats.badgeDirectory) {
+                        if(PRESET_MEDALS[title]) {
+                            hasMedals = true;
+                            let info = data.stats.badgeDirectory[title];
+                            let medalClass = PRESET_MEDALS[title];
+                            sHtml += `
+                                <div class="badge-item">
+                                    <div style="margin-bottom:8px;"><span class="medal ${medalClass}" style="font-size:14px; padding:4px 12px;">${escapeHtml(title)}</span></div>
+                                    <div style="font-size:12px; color:#666;">👥 获得: ${info.count} 人</div>
+                                    <div style="font-size:11px; color:#888; margin-top:5px;">🏅 ${info.holders.map(h => escapeHtml(h)).join(', ') || '暂无'}</div>
+                                </div>
+                            `;
+                        }
+                    }
+                    if(!hasMedals) sHtml += `<p style="color:#999; width:100%;">暂无炫酷徽章</p>`;
+                    sHtml += `</div>`;
+                    statsDiv.innerHTML = sHtml;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
