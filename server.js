@@ -1,15 +1,22 @@
 const express = require('express');
 const app = express();
 const http = require('http').Server(app);
-const io = require('socket.io')(http, { maxHttpBufferSize: 10 * 1024 * 1024 });
+const io = require('socket.io')(http, { maxHttpBufferSize: 50 * 1024 * 1024 });
 const fs = require('fs');
 const os = require('os');
+const path = require('path');
 
 const INVITE_CODE = "666";
 const ADMIN_PASSWORD = "admin123";
 const HISTORY_FILE = 'chat_history.json';
 const USERS_FILE = 'users.json';
 const BADGES_FILE = 'badges.json';
+const UPLOAD_DIR = 'uploads';
+
+// 创建上传目录
+if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR);
+}
 
 const getTodayStr = () => new Date().toDateString();
 const getWeekStr = () => {
@@ -60,7 +67,10 @@ for (let badge in PRESET_MEDALS) {
 const saveBadges = () => fs.writeFileSync(BADGES_FILE, JSON.stringify(badgesDB));
 saveBadges();
 
+// 静态文件服务
 app.use(express.static('public'));
+app.use('/uploads', express.static(UPLOAD_DIR));
+
 app.get('/', (req, res) => res.sendFile(__dirname + '/index.html'));
 
 function getLeaderboards() {
@@ -151,7 +161,6 @@ io.on('connection', (socket) => {
         cleanExpiredAuths();
         let userObj = usersDB[data.user];
         if (!userObj || userObj.pass !== data.pass) return cb({ status: 'fail', msg: '账号或密码错误！' });
-
         let isAdm = (data.inviteCode === ADMIN_PASSWORD);
         cb({ status: 'ok', isAdmin: isAdm, userData: userObj, history: chatHistory });
         if (isAdm) {
@@ -190,6 +199,23 @@ io.on('connection', (socket) => {
     socket.on('get users list', (cb) => { cb(Object.keys(usersDB)); });
     socket.on('get badges list', (cb) => { cb(Object.keys(badgesDB)); });
 
+    // 图片上传处理
+    socket.on('upload image', (data, cb) => {
+        try {
+            const filename = Date.now() + '_' + Math.random().toString(36).substring(7) + '.jpg';
+            const filepath = path.join(UPLOAD_DIR, filename);
+            const base64Data = data.imageData.replace(/^data:image\/\w+;base64,/, '');
+            const buffer = Buffer.from(base64Data, 'base64');
+            fs.writeFileSync(filepath, buffer);
+            const imageUrl = `/uploads/${filename}`;
+            cb({ success: true, url: imageUrl });
+        } catch (error) {
+            console.error('图片保存失败:', error);
+            cb({ success: false, error: error.message });
+        }
+    });
+
+    // 聊天消息
     socket.on('chat message', (data) => {
         if (usersDB[data.user]) {
             cleanExpiredAuths();
@@ -218,9 +244,11 @@ io.on('connection', (socket) => {
             };
 
             io.emit('chat message', msgData);
-            chatHistory.push(msgData);
-            if (chatHistory.length > 100) chatHistory.shift();
-            saveHistory();
+            if (data.type === 'text') {
+                chatHistory.push(msgData);
+                if (chatHistory.length > 100) chatHistory.shift();
+                saveHistory();
+            }
         }
     });
 
@@ -228,16 +256,13 @@ io.on('connection', (socket) => {
     socket.on('admin give coins', (data, cb) => {
         if (data.adminPass !== ADMIN_PASSWORD) return cb({ status: 'fail', msg: '权限不足' });
         if (!usersDB[data.targetUser]) return cb({ status: 'fail', msg: '用户不存在' });
-
         usersDB[data.targetUser].coins = (usersDB[data.targetUser].coins || 0) + data.amount;
         saveUsers();
-
         io.to(data.targetUser).emit('private notification', {
             title: '💰 金币赠送',
             message: `官方赠送您 ${data.amount} 金币，请查收！当前金币: ${usersDB[data.targetUser].coins}`,
             coins: usersDB[data.targetUser].coins
         });
-
         io.emit('system msg', `📢 管理员赠送了 ${data.amount} 金币给【${data.targetUser}】`);
         cb({ status: 'ok', msg: `已赠送 ${data.amount} 金币给 ${data.targetUser}` });
     });
@@ -245,23 +270,15 @@ io.on('connection', (socket) => {
     // 购买商品
     socket.on('buy item', (data, cb) => {
         if (!usersDB[data.user]) return cb({ status: 'fail', msg: '用户不存在' });
-
         let user = usersDB[data.user];
         if (user.coins < data.price) return cb({ status: 'fail', msg: '金币不足' });
-
         user.coins -= data.price;
-
-        if (data.type === 'bubble') {
-            user.bubble = data.itemId;
-        } else if (data.type === 'tail') {
-            user.tail = data.itemId;
-        } else if (data.type === 'frame') {
-            user.frame = data.itemId;
-        }
-
+        if (data.type === 'bubble') user.bubble = data.itemId;
+        else if (data.type === 'tail') user.tail = data.itemId;
+        else if (data.type === 'frame') user.frame = data.itemId;
         saveUsers();
 
-        let itemNames = {
+        const itemNames = {
             "bubble-default": "默认气泡", "bubble-pink": "梦幻粉红", "bubble-blue": "天空之蓝",
             "bubble-purple": "神秘紫色", "bubble-gold": "黄金贵族", "bubble-rainbow": "彩虹流光",
             "bubble-dark": "暗夜星辰", "tail-default": "无尾灯", "tail-star": "星光闪耀",
@@ -270,7 +287,6 @@ io.on('connection', (socket) => {
             "frame-rainbow": "彩虹边框", "frame-diamond": "钻石边框", "frame-flame": "烈焰边框"
         };
         let itemName = itemNames[data.itemId] || data.itemId;
-
         cb({ status: 'ok', newCoins: user.coins, itemName: itemName });
     });
 
@@ -287,7 +303,6 @@ io.on('connection', (socket) => {
     socket.on('admin give auth', (data, cb) => {
         if (data.adminPass !== ADMIN_PASSWORD) return cb({ status: 'fail', msg: '权限不足' });
         if (!usersDB[data.targetUser]) return cb({ status: 'fail', msg: '用户不存在' });
-
         if (data.type === 'give') {
             if (!badgesDB[data.badgeName]) return cb({ status: 'fail', msg: '认证不存在' });
             usersDB[data.targetUser].auths.push({ text: data.badgeName, colorClass: badgesDB[data.badgeName].colorClass, expires: null });
@@ -305,7 +320,6 @@ io.on('connection', (socket) => {
     socket.on('admin give medal', (data, cb) => {
         if (data.adminPass !== ADMIN_PASSWORD) return cb({ status: 'fail', msg: '权限不足' });
         if (!usersDB[data.targetUser]) return cb({ status: 'fail', msg: '用户不存在' });
-
         if (data.type === 'give') {
             if (!PRESET_MEDALS[data.medalName]) return cb({ status: 'fail', msg: '徽章不存在' });
             usersDB[data.targetUser].auths.push({ text: data.medalName, colorClass: PRESET_MEDALS[data.medalName], expires: null });
@@ -354,33 +368,21 @@ io.on('connection', (socket) => {
         cleanExpiredAuths();
         let boards = getLeaderboards();
         let badgeDirectory = updateBadgeDirectory();
-        
         let richBoard = Object.keys(usersDB).map(name => ({
             name: name,
             avatar: usersDB[name].avatar,
             coins: usersDB[name].coins || 0
         })).sort((a, b) => b.coins - a.coins).slice(0, 20);
-        
         cb({ boards, stats: { badgeDirectory }, richBoard });
     });
 });
 
-function getLocalIP() {
-    const interfaces = os.networkInterfaces();
-    for (let devName in interfaces) {
-        for (let i = 0; i < interfaces[devName].length; i++) {
-            let alias = interfaces[devName][i];
-            if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal) return alias.address;
-        }
-    }
-    return '127.0.0.1';
-}
-
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 http.listen(PORT, "0.0.0.0", () => {
     console.log(`\n✨ 炫酷聊天室已启动！`);
-    console.log(`📱 访问地址: http://${getLocalIP()}:${PORT}`);
+    console.log(`📱 访问地址: http://localhost:${PORT}`);
     console.log(`🔑 管理员密码: ${ADMIN_PASSWORD}`);
     console.log(`💰 新用户赠送100金币！`);
     console.log(`🎖️ 预设了20个炫酷徽章！`);
+    console.log(`📸 高清图片上传已启用！`);
 });
