@@ -11,19 +11,17 @@ const ADMIN_PASSWORD = "admin123";
 const HISTORY_FILE = 'chat_history.json';
 const USERS_FILE = 'users.json';
 const BADGES_FILE = 'badges.json';
+const FRIENDS_FILE = 'friends.json';
 const UPLOAD_DIR = 'uploads';
 
-// 创建上传目录
-if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR);
-}
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 
 const getTodayStr = () => new Date().toDateString();
 const getWeekStr = () => {
     let d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-    return d.getFullYear() + '-W' + Math.ceil((((d - new Date(d.getFullYear(), 0, 1)) / 86400000) + 1) / 7);
+    d.setHours(0,0,0,0);
+    d.setDate(d.getDate() + 4 - (d.getDay()||7));
+    return d.getFullYear() + '-W' + Math.ceil((((d - new Date(d.getFullYear(),0,1))/86400000)+1)/7);
 };
 
 const PRESET_MEDALS = {
@@ -60,25 +58,30 @@ const saveHistory = () => fs.writeFileSync(HISTORY_FILE, JSON.stringify(chatHist
 let badgesDB = {};
 if (fs.existsSync(BADGES_FILE)) try { badgesDB = JSON.parse(fs.readFileSync(BADGES_FILE)); } catch(e){}
 for (let badge in PRESET_MEDALS) {
-    if (!badgesDB[badge]) {
-        badgesDB[badge] = { colorClass: PRESET_MEDALS[badge] };
-    }
+    if (!badgesDB[badge]) badgesDB[badge] = { colorClass: PRESET_MEDALS[badge] };
 }
 const saveBadges = () => fs.writeFileSync(BADGES_FILE, JSON.stringify(badgesDB));
 saveBadges();
 
-// 静态文件服务
+let friendsDB = {};
+if (fs.existsSync(FRIENDS_FILE)) try { friendsDB = JSON.parse(fs.readFileSync(FRIENDS_FILE)); } catch(e){}
+const saveFriends = () => fs.writeFileSync(FRIENDS_FILE, JSON.stringify(friendsDB));
+
+function initFriends(user) {
+    if (!friendsDB[user]) friendsDB[user] = { friends: [], friendRequests: [], blocked: [] };
+    saveFriends();
+}
+
 app.use(express.static('public'));
 app.use('/uploads', express.static(UPLOAD_DIR));
-
 app.get('/', (req, res) => res.sendFile(__dirname + '/index.html'));
 
 function getLeaderboards() {
     let usersArray = Object.keys(usersDB).map(name => ({ name, ...usersDB[name] }));
     let today = getTodayStr();
     let thisWeek = getWeekStr();
-    let dailyBoard = usersArray.filter(u => u.stats.lastDay === today && u.stats.daily > 0).sort((a, b) => b.stats.daily - a.stats.daily);
-    let weeklyBoard = usersArray.filter(u => u.stats.lastWeek === thisWeek && u.stats.weekly > 0).sort((a, b) => b.stats.weekly - a.stats.weekly);
+    let dailyBoard = usersArray.filter(u => u.stats.lastDay === today && u.stats.daily > 0).sort((a,b)=>b.stats.daily - a.stats.daily);
+    let weeklyBoard = usersArray.filter(u => u.stats.lastWeek === thisWeek && u.stats.weekly > 0).sort((a,b)=>b.stats.weekly - a.stats.weekly);
     return { dailyBoard, weeklyBoard };
 }
 
@@ -96,7 +99,6 @@ function triggerSettle() {
     let boards = getLeaderboards();
     let now = Date.now();
     let logs = [];
-
     if (boards.dailyBoard[0]) {
         let name = boards.dailyBoard[0].name;
         usersDB[name].auths.push({ text: "🔥 日榜冠军", colorClass: "medal-flame", expires: now + 86400000 });
@@ -107,14 +109,12 @@ function triggerSettle() {
         usersDB[name].auths.push({ text: "👑 周榜王者", colorClass: "medal-royal", expires: now + 604800000 });
         logs.push(`👑 恭喜【${name}】夺得本周活跃榜冠军！`);
     }
-
     for (let name in usersDB) {
         usersDB[name].stats.daily = 0;
         usersDB[name].stats.lastDay = getTodayStr();
     }
     saveUsers();
-
-    let msg = logs.length > 0 ? "📢 榜单结算完毕！\n" + logs.join("\n") : "📢 今日榜单结算完毕！";
+    let msg = logs.length ? "📢 榜单结算完毕！\n" + logs.join("\n") : "📢 今日榜单结算完毕！";
     io.emit('announcement', msg);
     io.emit('system msg', msg);
 }
@@ -124,13 +124,9 @@ function updateBadgeDirectory() {
     for (let name in usersDB) {
         if (usersDB[name].auths) {
             usersDB[name].auths.forEach(auth => {
-                if (!directory[auth.text]) {
-                    directory[auth.text] = { colorClass: auth.colorClass, count: 0, holders: [] };
-                }
+                if (!directory[auth.text]) directory[auth.text] = { colorClass: auth.colorClass, count: 0, holders: [] };
                 directory[auth.text].count++;
-                if (!directory[auth.text].holders.includes(name)) {
-                    directory[auth.text].holders.push(name);
-                }
+                if (!directory[auth.text].holders.includes(name)) directory[auth.text].holders.push(name);
             });
         }
     }
@@ -153,6 +149,7 @@ io.on('connection', (socket) => {
             stats: { daily: 0, weekly: 0, lastDay: getTodayStr(), lastWeek: getWeekStr() }
         };
         saveUsers();
+        initFriends(data.user);
         cb({ status: 'ok', msg: '注册成功！' });
         io.emit('update users list', Object.keys(usersDB));
     });
@@ -162,6 +159,7 @@ io.on('connection', (socket) => {
         let userObj = usersDB[data.user];
         if (!userObj || userObj.pass !== data.pass) return cb({ status: 'fail', msg: '账号或密码错误！' });
         let isAdm = (data.inviteCode === ADMIN_PASSWORD);
+        initFriends(data.user);
         cb({ status: 'ok', isAdmin: isAdm, userData: userObj, history: chatHistory });
         if (isAdm) {
             io.emit('update users list', Object.keys(usersDB));
@@ -182,11 +180,25 @@ io.on('connection', (socket) => {
         if (!usersDB[data.oldName]) return cb({ status: 'fail', msg: '用户不存在' });
         if (usersDB[data.newName]) return cb({ status: 'fail', msg: '昵称已被使用' });
         if (data.newName.length < 2 || data.newName.length > 12) return cb({ status: 'fail', msg: '昵称长度需2-12字符' });
-
         let userData = usersDB[data.oldName];
         delete usersDB[data.oldName];
         usersDB[data.newName] = userData;
         saveUsers();
+
+        // 更新好友关系中的用户名
+        if (friendsDB[data.oldName]) {
+            friendsDB[data.newName] = friendsDB[data.oldName];
+            delete friendsDB[data.oldName];
+        }
+        for (let user in friendsDB) {
+            let idx = friendsDB[user].friends.indexOf(data.oldName);
+            if (idx !== -1) friendsDB[user].friends[idx] = data.newName;
+            idx = friendsDB[user].friendRequests.indexOf(data.oldName);
+            if (idx !== -1) friendsDB[user].friendRequests[idx] = data.newName;
+            idx = friendsDB[user].blocked.indexOf(data.oldName);
+            if (idx !== -1) friendsDB[user].blocked[idx] = data.newName;
+        }
+        saveFriends();
 
         chatHistory.forEach(msg => { if (msg.user === data.oldName) msg.user = data.newName; });
         saveHistory();
@@ -199,7 +211,7 @@ io.on('connection', (socket) => {
     socket.on('get users list', (cb) => { cb(Object.keys(usersDB)); });
     socket.on('get badges list', (cb) => { cb(Object.keys(badgesDB)); });
 
-    // 图片上传处理
+    // 图片上传
     socket.on('upload image', (data, cb) => {
         try {
             const filename = Date.now() + '_' + Math.random().toString(36).substring(7) + '.jpg';
@@ -207,27 +219,21 @@ io.on('connection', (socket) => {
             const base64Data = data.imageData.replace(/^data:image\/\w+;base64,/, '');
             const buffer = Buffer.from(base64Data, 'base64');
             fs.writeFileSync(filepath, buffer);
-            const imageUrl = `/uploads/${filename}`;
-            cb({ success: true, url: imageUrl });
+            cb({ success: true, url: `/uploads/${filename}` });
         } catch (error) {
-            console.error('图片保存失败:', error);
             cb({ success: false, error: error.message });
         }
     });
 
-    // 聊天消息
+    // 广场消息
     socket.on('chat message', (data) => {
         if (usersDB[data.user]) {
             cleanExpiredAuths();
             let u = usersDB[data.user];
-            let today = getTodayStr();
-            let thisWeek = getWeekStr();
-
+            let today = getTodayStr(), thisWeek = getWeekStr();
             if (u.stats.lastDay !== today) { u.stats.daily = 0; u.stats.lastDay = today; }
             if (u.stats.lastWeek !== thisWeek) { u.stats.weekly = 0; u.stats.lastWeek = thisWeek; }
-
-            u.stats.daily++;
-            u.stats.weekly++;
+            u.stats.daily++; u.stats.weekly++;
             saveUsers();
 
             let msgData = {
@@ -235,14 +241,13 @@ io.on('connection', (socket) => {
                 user: data.user,
                 type: data.type,
                 content: data.content,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                time: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }),
                 avatar: u.avatar,
                 auths: u.auths,
                 bubble: data.bubble || u.bubble,
                 tail: data.tail || u.tail,
                 frame: u.frame
             };
-
             io.emit('chat message', msgData);
             if (data.type === 'text') {
                 chatHistory.push(msgData);
@@ -252,7 +257,133 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 管理员赠送金币
+    // ========== 好友系统 ==========
+    socket.on('get friends data', (data, cb) => {
+        initFriends(data.user);
+        let userFriends = friendsDB[data.user];
+        let friendsWithInfo = userFriends.friends.map(f => ({
+            name: f,
+            avatar: usersDB[f]?.avatar || '',
+            auths: usersDB[f]?.auths || []
+        }));
+        let requestsWithInfo = userFriends.friendRequests.map(req => ({
+            from: req,
+            avatar: usersDB[req]?.avatar || '',
+            auths: usersDB[req]?.auths || []
+        }));
+        let blockedWithInfo = userFriends.blocked.map(b => ({
+            name: b,
+            avatar: usersDB[b]?.avatar || ''
+        }));
+        cb({ friends: friendsWithInfo, friendRequests: requestsWithInfo, blocked: blockedWithInfo });
+    });
+
+    socket.on('add friend', (data, cb) => {
+        initFriends(data.user);
+        initFriends(data.target);
+        if (!usersDB[data.target]) return cb({ status: 'fail', msg: '用户不存在！' });
+        if (data.user === data.target) return cb({ status: 'fail', msg: '不能添加自己为好友' });
+        let userFriends = friendsDB[data.user];
+        if (userFriends.friends.includes(data.target)) return cb({ status: 'fail', msg: '已经是好友了！' });
+        if (userFriends.blocked.includes(data.target)) return cb({ status: 'fail', msg: '该用户已被你拉黑' });
+        let targetFriends = friendsDB[data.target];
+        if (targetFriends.blocked.includes(data.user)) return cb({ status: 'fail', msg: '对方已将你拉黑' });
+        if (targetFriends.friendRequests.includes(data.user)) return cb({ status: 'fail', msg: '已经发送过好友请求了' });
+        targetFriends.friendRequests.push(data.user);
+        saveFriends();
+        io.to(data.target).emit('friend request notification', { from: data.user });
+        cb({ status: 'ok', msg: `已向 ${data.target} 发送好友请求！` });
+    });
+
+    socket.on('accept friend', (data, cb) => {
+        initFriends(data.user);
+        initFriends(data.from);
+        let userFriends = friendsDB[data.user];
+        let idx = userFriends.friendRequests.indexOf(data.from);
+        if (idx === -1) return cb({ status: 'fail', msg: '好友请求不存在' });
+        userFriends.friendRequests.splice(idx,1);
+        if (!userFriends.friends.includes(data.from)) userFriends.friends.push(data.from);
+        let fromFriends = friendsDB[data.from];
+        if (!fromFriends.friends.includes(data.user)) fromFriends.friends.push(data.user);
+        saveFriends();
+        io.to(data.from).emit('friend accepted notification', { by: data.user });
+        cb({ status: 'ok', msg: `已添加 ${data.from} 为好友！` });
+    });
+
+    socket.on('reject friend', (data, cb) => {
+        initFriends(data.user);
+        let userFriends = friendsDB[data.user];
+        let idx = userFriends.friendRequests.indexOf(data.from);
+        if (idx !== -1) {
+            userFriends.friendRequests.splice(idx,1);
+            saveFriends();
+            cb({ status: 'ok', msg: `已拒绝 ${data.from} 的好友请求` });
+        } else cb({ status: 'fail', msg: '好友请求不存在' });
+    });
+
+    socket.on('remove friend', (data, cb) => {
+        initFriends(data.user);
+        initFriends(data.target);
+        let userFriends = friendsDB[data.user];
+        let targetFriends = friendsDB[data.target];
+        let ui = userFriends.friends.indexOf(data.target);
+        let ti = targetFriends.friends.indexOf(data.user);
+        if (ui !== -1) userFriends.friends.splice(ui,1);
+        if (ti !== -1) targetFriends.friends.splice(ti,1);
+        saveFriends();
+        cb({ status: 'ok', msg: `已删除好友 ${data.target}` });
+    });
+
+    socket.on('block user', (data, cb) => {
+        initFriends(data.user);
+        initFriends(data.target);
+        let userFriends = friendsDB[data.user];
+        // 如果是好友，先删除
+        let fi = userFriends.friends.indexOf(data.target);
+        if (fi !== -1) {
+            userFriends.friends.splice(fi,1);
+            let targetFriends = friendsDB[data.target];
+            let ti = targetFriends.friends.indexOf(data.user);
+            if (ti !== -1) targetFriends.friends.splice(ti,1);
+        }
+        let ri = userFriends.friendRequests.indexOf(data.target);
+        if (ri !== -1) userFriends.friendRequests.splice(ri,1);
+        if (!userFriends.blocked.includes(data.target)) userFriends.blocked.push(data.target);
+        saveFriends();
+        cb({ status: 'ok', msg: `已拉黑 ${data.target}` });
+    });
+
+    socket.on('unblock user', (data, cb) => {
+        initFriends(data.user);
+        let userFriends = friendsDB[data.user];
+        let idx = userFriends.blocked.indexOf(data.target);
+        if (idx !== -1) {
+            userFriends.blocked.splice(idx,1);
+            saveFriends();
+            cb({ status: 'ok', msg: `已解除对 ${data.target} 的拉黑` });
+        } else cb({ status: 'fail', msg: '该用户不在黑名单中' });
+    });
+
+    // ========== 私聊 ==========
+    socket.on('private message', (data) => {
+        initFriends(data.to);
+        let targetFriends = friendsDB[data.to];
+        if (targetFriends.blocked.includes(data.from)) {
+            socket.emit('system msg', `无法发送：${data.to} 已将你拉黑`);
+            return;
+        }
+        let msgData = {
+            from: data.from,
+            content: data.content,
+            time: new Date().toLocaleTimeString(),
+            type: data.type || 'text'
+        };
+        io.to(data.to).emit('private message', msgData);
+        // 可选：同时通知发送方已发送（但前端已添加本地消息）
+        socket.emit('system msg', `私聊已发送给 ${data.to}`);
+    });
+
+    // ========== 管理员功能（金币、认证、徽章等，与原有相同） ==========
     socket.on('admin give coins', (data, cb) => {
         if (data.adminPass !== ADMIN_PASSWORD) return cb({ status: 'fail', msg: '权限不足' });
         if (!usersDB[data.targetUser]) return cb({ status: 'fail', msg: '用户不存在' });
@@ -267,7 +398,6 @@ io.on('connection', (socket) => {
         cb({ status: 'ok', msg: `已赠送 ${data.amount} 金币给 ${data.targetUser}` });
     });
 
-    // 购买商品
     socket.on('buy item', (data, cb) => {
         if (!usersDB[data.user]) return cb({ status: 'fail', msg: '用户不存在' });
         let user = usersDB[data.user];
@@ -277,20 +407,18 @@ io.on('connection', (socket) => {
         else if (data.type === 'tail') user.tail = data.itemId;
         else if (data.type === 'frame') user.frame = data.itemId;
         saveUsers();
-
         const itemNames = {
-            "bubble-default": "默认气泡", "bubble-pink": "梦幻粉红", "bubble-blue": "天空之蓝",
-            "bubble-purple": "神秘紫色", "bubble-gold": "黄金贵族", "bubble-rainbow": "彩虹流光",
-            "bubble-dark": "暗夜星辰", "tail-default": "无尾灯", "tail-star": "星光闪耀",
-            "tail-heart": "爱心飞舞", "tail-fire": "火焰之舞", "tail-crown": "皇冠加冕",
-            "": "无边框", "frame-gold": "黄金边框", "frame-silver": "白银边框",
-            "frame-rainbow": "彩虹边框", "frame-diamond": "钻石边框", "frame-flame": "烈焰边框"
+            "bubble-default":"默认气泡","bubble-pink":"梦幻粉红","bubble-blue":"天空之蓝",
+            "bubble-purple":"神秘紫色","bubble-gold":"黄金贵族","bubble-rainbow":"彩虹流光",
+            "bubble-dark":"暗夜星辰","tail-default":"无尾灯","tail-star":"星光闪耀",
+            "tail-heart":"爱心飞舞","tail-fire":"火焰之舞","tail-crown":"皇冠加冕",
+            "":"无边框","frame-gold":"黄金边框","frame-silver":"白银边框",
+            "frame-rainbow":"彩虹边框","frame-diamond":"钻石边框","frame-flame":"烈焰边框"
         };
         let itemName = itemNames[data.itemId] || data.itemId;
-        cb({ status: 'ok', newCoins: user.coins, itemName: itemName });
+        cb({ status: 'ok', newCoins: user.coins, itemName });
     });
 
-    // 官方认证管理
     socket.on('admin create badge', (data) => {
         if (data.adminPass === ADMIN_PASSWORD) {
             badgesDB[data.name] = { colorClass: data.colorClass };
@@ -316,7 +444,6 @@ io.on('connection', (socket) => {
         saveUsers();
     });
 
-    // 炫酷徽章管理
     socket.on('admin give medal', (data, cb) => {
         if (data.adminPass !== ADMIN_PASSWORD) return cb({ status: 'fail', msg: '权限不足' });
         if (!usersDB[data.targetUser]) return cb({ status: 'fail', msg: '用户不存在' });
@@ -332,9 +459,7 @@ io.on('connection', (socket) => {
                 saveUsers();
                 io.emit('system msg', `📢 收回了【${data.targetUser}】的徽章：【${data.medalName}】`);
                 cb({ status: 'ok', msg: `已收回徽章` });
-            } else {
-                cb({ status: 'fail', msg: `用户没有此徽章` });
-            }
+            } else cb({ status: 'fail', msg: `用户没有此徽章` });
         } else if (data.type === 'clear') {
             usersDB[data.targetUser].auths = usersDB[data.targetUser].auths.filter(a => badgesDB[a.text] ? true : false);
             saveUsers();
@@ -372,7 +497,7 @@ io.on('connection', (socket) => {
             name: name,
             avatar: usersDB[name].avatar,
             coins: usersDB[name].coins || 0
-        })).sort((a, b) => b.coins - a.coins).slice(0, 20);
+        })).sort((a,b)=>b.coins - a.coins).slice(0,20);
         cb({ boards, stats: { badgeDirectory }, richBoard });
     });
 });
@@ -384,5 +509,6 @@ http.listen(PORT, "0.0.0.0", () => {
     console.log(`🔑 管理员密码: ${ADMIN_PASSWORD}`);
     console.log(`💰 新用户赠送100金币！`);
     console.log(`🎖️ 预设了20个炫酷徽章！`);
-    console.log(`📸 高清图片上传已启用！`);
+    console.log(`👥 好友系统已启用！`);
+    console.log(`💬 私聊功能已启用！`);
 });
