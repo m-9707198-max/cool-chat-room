@@ -3,234 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>炫酷聊天室 | 快乐 开心 最重要</title>
+    <title>炫酷聊天室 | 广场 + 私聊</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f0f2f5;
-            overflow: hidden;
-            height: 100vh;
-        }
+        /* 原有样式保持不变，新增好友面板和私聊窗口样式 */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; overflow: hidden; height: 100vh; }
 
         /* 登录界面 */
-        #login-container {
-            display: flex;
-            height: 100vh;
-            justify-content: center;
-            align-items: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .login-box {
-            background: white;
-            padding: 30px;
-            border-radius: 20px;
-            text-align: center;
-            width: 85%;
-            max-width: 350px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        .login-box h2 {
-            color: #667eea;
-            margin-bottom: 10px;
-        }
-        .login-box input {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            font-size: 14px;
-        }
-        .login-box button {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: transform 0.2s;
-        }
-        .login-box button:hover {
-            transform: translateY(-2px);
-        }
-        .btn-login {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-        .btn-register {
-            background: #2ecc71;
-            color: white;
-        }
+        #login-container { display: flex; height: 100vh; justify-content: center; align-items: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .login-box { background: white; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 350px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .login-box h2 { color: #667eea; margin-bottom: 10px; }
+        .login-box input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; }
+        .login-box button { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: transform 0.2s; }
+        .login-box button:hover { transform: translateY(-2px); }
+        .btn-login { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        .btn-register { background: #2ecc71; color: white; }
 
         /* 主聊天界面 */
-        #chat-container {
-            display: none;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
+        #chat-container { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
 
         /* 头部 */
-        #header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 12px 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            flex-shrink: 0;
-        }
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .current-avatar {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            border: 2px solid white;
-            cursor: pointer;
-            object-fit: cover;
-        }
-        .header-info h3 {
-            font-size: 16px;
-            margin-bottom: 3px;
-        }
-        .header-info p {
-            font-size: 11px;
-            opacity: 0.9;
-        }
-        .header-buttons {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .header-btn {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        .header-btn:hover {
-            background: rgba(255,255,255,0.3);
-            transform: scale(1.05);
-        }
-        .logout-btn {
-            background: rgba(231, 76, 60, 0.8);
-        }
-        .logout-btn:hover {
-            background: rgba(231, 76, 60, 1);
-        }
-        .coin-display {
-            background: rgba(0,0,0,0.3);
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
+        #header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex-shrink: 0; }
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        .current-avatar { width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; cursor: pointer; object-fit: cover; }
+        .header-info h3 { font-size: 16px; margin-bottom: 3px; }
+        .header-info p { font-size: 11px; opacity: 0.9; }
+        .header-buttons { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .header-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 20px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
+        .header-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
+        .logout-btn { background: rgba(231, 76, 60, 0.8); }
+        .logout-btn:hover { background: rgba(231, 76, 60, 1); }
+        .coin-display { background: rgba(0,0,0,0.3); padding: 5px 12px; border-radius: 20px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
 
         /* 跑马灯 */
-        #marquee-container {
-            background: #fff3cd;
-            color: #856404;
-            padding: 8px;
-            font-size: 13px;
-            overflow: hidden;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-        #marquee {
-            display: inline-block;
-            animation: scroll 20s linear infinite;
-        }
-        @keyframes scroll {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
-        }
+        #marquee-container { background: #fff3cd; color: #856404; padding: 8px; font-size: 13px; overflow: hidden; white-space: nowrap; flex-shrink: 0; }
+        #marquee { display: inline-block; animation: scroll 20s linear infinite; }
+        @keyframes scroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
         /* 管理员面板 */
-        #admin-panel {
-            display: none;
-            background: linear-gradient(135deg, #667eea20, #764ba220);
-            padding: 10px;
-            border-bottom: 2px solid #667eea;
-            font-size: 12px;
-            max-height: 200px;
-            overflow-y: auto;
-            flex-shrink: 0;
-        }
-        .admin-section {
-            background: white;
-            padding: 8px;
-            margin-bottom: 8px;
-            border-radius: 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .admin-section b {
-            color: #667eea;
-        }
-        .admin-select {
-            padding: 5px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            margin: 2px;
-        }
+        #admin-panel { display: none; background: linear-gradient(135deg, #667eea20, #764ba220); padding: 10px; border-bottom: 2px solid #667eea; font-size: 12px; max-height: 200px; overflow-y: auto; flex-shrink: 0; }
+        .admin-section { background: white; padding: 8px; margin-bottom: 8px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .admin-section b { color: #667eea; }
+        .admin-select { padding: 5px; border-radius: 5px; border: 1px solid #ccc; margin: 2px; }
 
-        /* 消息区域 - 修复滚动 */
-        .messages-container {
-            flex: 1;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            position: relative;
-        }
-        #messages {
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+        /* 消息区域 */
+        .messages-container { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
+        #messages { padding: 15px; display: flex; flex-direction: column; gap: 12px; }
 
-        /* 消息气泡样式 */
-        .msg-box {
-            display: flex;
-            gap: 10px;
-            max-width: 85%;
-            animation: fadeIn 0.3s;
-            position: relative;
-        }
-        .msg-box.self {
-            align-self: flex-end;
-            flex-direction: row-reverse;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        /* 消息气泡样式（同原有） */
+        .msg-box { display: flex; gap: 10px; max-width: 85%; animation: fadeIn 0.3s; position: relative; }
+        .msg-box.self { align-self: flex-end; flex-direction: row-reverse; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 头像框 */
-        .avatar-frame {
-            border-radius: 50%;
-            padding: 3px;
-            display: inline-block;
-        }
+        .avatar-frame { border-radius: 50%; padding: 3px; display: inline-block; }
         .frame-gold { background: linear-gradient(135deg, #FFD700, #FFA500); }
         .frame-silver { background: linear-gradient(135deg, #C0C0C0, #808080); }
         .frame-rainbow { background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet); animation: frameRotate 3s linear infinite; background-size: 200%; }
@@ -239,33 +65,12 @@
         @keyframes frameRotate { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
         @keyframes framePulse { 0% { box-shadow: 0 0 0 0 rgba(255,77,77,0.7); } 100% { box-shadow: 0 0 0 5px rgba(255,77,77,0); } }
 
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-            cursor: pointer;
-            transition: transform 0.2s;
-            display: block;
-        }
-        .avatar:hover {
-            transform: scale(1.1);
-        }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer; transition: transform 0.2s; display: block; }
+        .avatar:hover { transform: scale(1.1); }
 
-        .msg-content {
-            background: white;
-            padding: 10px 14px;
-            border-radius: 18px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-            word-break: break-word;
-            max-width: 100%;
-        }
-        .msg-box.self .msg-content {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
+        .msg-content { background: white; padding: 10px 14px; border-radius: 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-break: break-word; max-width: 100%; }
+        .msg-box.self .msg-content { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
 
-        /* 气泡皮肤 */
         .bubble-default { background: white; }
         .bubble-pink { background: #FFB6C1; color: #333; }
         .bubble-blue { background: #87CEEB; color: #333; }
@@ -275,41 +80,18 @@
         .bubble-dark { background: #2C3E50; color: white; }
         @keyframes bubbleFlow { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
         .msg-box.self .bubble-pink, .msg-box.self .bubble-blue, .msg-box.self .bubble-purple,
-        .msg-box.self .bubble-gold, .msg-box.self .bubble-rainbow, .msg-box.self .bubble-dark {
-            color: white;
-        }
+        .msg-box.self .bubble-gold, .msg-box.self .bubble-rainbow, .msg-box.self .bubble-dark { color: white; }
 
-        /* 尾灯特效 */
         .tail-default::after { display: none; }
         .tail-star::after { content: '⭐'; display: block; font-size: 12px; bottom: -15px; right: 10px; position: absolute; }
         .tail-heart::after { content: '❤️'; display: block; font-size: 12px; bottom: -15px; right: 10px; position: absolute; }
         .tail-fire::after { content: '🔥'; display: block; font-size: 12px; bottom: -15px; right: 10px; position: absolute; }
         .tail-crown::after { content: '👑'; display: block; font-size: 12px; bottom: -15px; right: 10px; position: absolute; }
 
-        .user-name {
-            font-size: 11px;
-            color: #666;
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            flex-wrap: wrap;
-        }
-        .msg-box.self .user-name {
-            justify-content: flex-end;
-            color: #ccc;
-        }
+        .user-name { font-size: 11px; color: #666; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .msg-box.self .user-name { justify-content: flex-end; color: #ccc; }
 
-        /* 认证徽章 */
-        .badge {
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-            color: white;
-            white-space: nowrap;
-            display: inline-block;
-        }
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; color: white; white-space: nowrap; display: inline-block; }
         .c-green { background: #2ecc71; }
         .c-blue { background: #3498db; }
         .c-red { background: #e74c3c; }
@@ -322,20 +104,8 @@
         .c-rainbow { background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff); background-size: 300%; animation: glow 3s infinite; }
         .c-darkglow { background: linear-gradient(45deg, #000, #8b0000, #000); background-size: 200%; animation: glow 3s infinite; border: 1px solid red; color: #ffcccc; }
 
-        /* 炫酷徽章 */
-        .medal {
-            padding: 2px 8px;
-            border-radius: 20px;
-            font-size: 10px;
-            font-weight: bold;
-            display: inline-block;
-            white-space: nowrap;
-            animation: medalGlow 1s ease-in-out infinite alternate;
-        }
-        @keyframes medalGlow {
-            from { box-shadow: 0 0 2px currentColor; }
-            to { box-shadow: 0 0 8px currentColor; }
-        }
+        .medal { padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: bold; display: inline-block; white-space: nowrap; animation: medalGlow 1s ease-in-out infinite alternate; }
+        @keyframes medalGlow { from { box-shadow: 0 0 2px currentColor; } to { box-shadow: 0 0 8px currentColor; } }
         .medal-legend { background: linear-gradient(135deg, #FFD700, #FFA500); color: #fff; }
         .medal-mythic { background: linear-gradient(135deg, #FF0066, #FF44CC); color: white; }
         .medal-dragon { background: linear-gradient(135deg, #FF4D4D, #FF0000); color: white; animation: shake 0.5s ease-in-out infinite alternate; }
@@ -374,316 +144,98 @@
         @keyframes glow { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
 
         /* 输入区域 */
-        #input-area {
-            display: flex;
-            padding: 12px;
-            background: white;
-            border-top: 1px solid #ddd;
-            gap: 8px;
-            align-items: center;
-            flex-shrink: 0;
-        }
-        #input-area input {
-            flex: 1;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 25px;
-            outline: none;
-            font-size: 14px;
-        }
-        .icon-btn {
-            background: #f0f2f5;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px 12px;
-            border-radius: 25px;
-            transition: all 0.2s;
-        }
-        .icon-btn:hover {
-            background: #e0e0e0;
-            transform: scale(1.05);
-        }
-        .send-btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.2s;
-        }
-        .send-btn:hover {
-            transform: scale(1.05);
-        }
+        #input-area { display: flex; padding: 12px; background: white; border-top: 1px solid #ddd; gap: 8px; align-items: center; flex-shrink: 0; }
+        #input-area input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 25px; outline: none; font-size: 14px; }
+        .icon-btn { background: #f0f2f5; border: none; font-size: 24px; cursor: pointer; padding: 8px 12px; border-radius: 25px; transition: all 0.2s; }
+        .icon-btn:hover { background: #e0e0e0; transform: scale(1.05); }
+        .send-btn { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; transition: transform 0.2s; }
+        .send-btn:hover { transform: scale(1.05); }
 
         /* 表情面板 */
-        #emoji-panel {
-            display: none;
-            position: absolute;
-            bottom: 70px;
-            left: 10px;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 15px;
-            padding: 10px;
-            width: 250px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-            flex-wrap: wrap;
-            gap: 8px;
-            z-index: 1000;
-        }
-        .emoji-item {
-            cursor: pointer;
-            font-size: 24px;
-            padding: 5px;
-            transition: transform 0.2s;
-        }
-        .emoji-item:hover {
-            transform: scale(1.2);
-        }
+        #emoji-panel { display: none; position: absolute; bottom: 70px; left: 10px; background: white; border: 1px solid #ddd; border-radius: 15px; padding: 10px; width: 250px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); flex-wrap: wrap; gap: 8px; z-index: 1000; }
+        .emoji-item { cursor: pointer; font-size: 24px; padding: 5px; transition: transform 0.2s; }
+        .emoji-item:hover { transform: scale(1.2); }
 
         /* 商城面板 */
-        #shop-panel {
-            position: fixed;
-            right: 0;
-            top: 0;
-            width: 350px;
-            height: 100vh;
-            background: white;
-            box-shadow: -2px 0 20px rgba(0,0,0,0.15);
-            transform: translateX(100%);
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1001;
-            display: flex;
-            flex-direction: column;
-        }
-        #shop-panel.open {
-            transform: translateX(0);
-        }
-        .shop-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .shop-header h3 {
-            margin: 0;
-            font-size: 18px;
-        }
-        .close-shop {
-            cursor: pointer;
-            font-size: 24px;
-        }
-        .shop-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-        }
-        .shop-category {
-            margin-bottom: 20px;
-        }
-        .shop-category h4 {
-            color: #667eea;
-            margin-bottom: 10px;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 5px;
-        }
-        .shop-item {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 10px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .shop-item-info {
-            flex: 1;
-        }
-        .shop-item-name {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .shop-item-price {
-            color: #f39c12;
-            font-size: 12px;
-        }
-        .shop-item-price::before {
-            content: '💰 ';
-        }
-        .buy-btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 5px 15px;
-            border-radius: 15px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: transform 0.2s;
-        }
-        .buy-btn:hover {
-            transform: scale(1.05);
-        }
-        .equipped {
-            background: #2ecc71;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 11px;
-        }
+        #shop-panel { position: fixed; right: 0; top: 0; width: 350px; height: 100vh; background: white; box-shadow: -2px 0 20px rgba(0,0,0,0.15); transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1001; display: flex; flex-direction: column; }
+        #shop-panel.open { transform: translateX(0); }
+        .shop-header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .shop-header h3 { margin: 0; font-size: 18px; }
+        .close-shop { cursor: pointer; font-size: 24px; }
+        .shop-content { flex: 1; overflow-y: auto; padding: 15px; }
+        .shop-category { margin-bottom: 20px; }
+        .shop-category h4 { color: #667eea; margin-bottom: 10px; border-bottom: 2px solid #667eea; padding-bottom: 5px; }
+        .shop-item { background: #f8f9fa; border-radius: 10px; padding: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .shop-item-info { flex: 1; }
+        .shop-item-name { font-weight: bold; margin-bottom: 5px; }
+        .shop-item-price { color: #f39c12; font-size: 12px; }
+        .shop-item-price::before { content: '💰 '; }
+        .buy-btn { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 5px 15px; border-radius: 15px; cursor: pointer; font-size: 12px; transition: transform 0.2s; }
+        .buy-btn:hover { transform: scale(1.05); }
+        .equipped { background: #2ecc71; color: white; padding: 5px 10px; border-radius: 15px; font-size: 11px; }
+
+        /* 好友面板 */
+        #friends-panel { position: fixed; right: 0; top: 0; width: 320px; height: 100vh; background: white; box-shadow: -2px 0 20px rgba(0,0,0,0.15); transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; display: flex; flex-direction: column; }
+        #friends-panel.open { transform: translateX(0); }
+        .friends-header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .friends-header h3 { margin: 0; font-size: 18px; }
+        .close-friends { cursor: pointer; font-size: 24px; }
+        .friends-tabs { display: flex; border-bottom: 1px solid #eee; background: #fafafa; }
+        .friends-tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .friends-tab.active { background: white; border-bottom: 2px solid #667eea; color: #667eea; font-weight: bold; }
+        .friends-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .friend-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid #f0f0f0; transition: background 0.2s; cursor: pointer; }
+        .friend-item:hover { background: #f5f5f5; }
+        .friend-info { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .friend-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+        .friend-details { flex: 1; }
+        .friend-name { font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+        .friend-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+        .friend-actions button { margin-left: 5px; padding: 6px 10px; font-size: 11px; border: none; border-radius: 15px; cursor: pointer; transition: all 0.2s; }
+        .add-friend-area { padding: 12px; border-top: 1px solid #eee; display: flex; gap: 8px; background: #fafafa; }
+        .add-friend-area input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; font-size: 14px; }
+
+        /* 私聊窗口 */
+        .private-chat-window { position: fixed; bottom: 80px; right: 330px; width: 350px; height: 500px; background: white; border-radius: 15px; box-shadow: 0 5px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column; z-index: 1002; animation: slideUp 0.3s; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }
+        .pc-header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px; border-radius: 15px 15px 0 0; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .pc-header h4 { margin: 0; font-size: 14px; }
+        .pc-close { cursor: pointer; font-size: 20px; }
+        .pc-messages { flex: 1; overflow-y: auto; padding: 12px; background: #f8f9fa; }
+        .pc-msg { margin-bottom: 12px; display: flex; flex-direction: column; }
+        .pc-msg.self { align-items: flex-end; }
+        .pc-msg-content { max-width: 80%; padding: 8px 12px; border-radius: 15px; background: white; word-break: break-word; }
+        .pc-msg.self .pc-msg-content { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        .pc-input-area { display: flex; padding: 10px; border-top: 1px solid #eee; gap: 8px; }
+        .pc-input-area input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
+        .pc-send { background: #667eea; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; }
 
         /* 私信通知 */
-        .private-notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-            z-index: 2000;
-            animation: slideIn 0.3s ease;
-            max-width: 300px;
-        }
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
+        .private-notification { position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 20px; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); z-index: 2000; animation: slideIn 0.3s ease; max-width: 300px; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
         /* 排行榜模态框 */
-        #leaderboard-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.6);
-            z-index: 1002;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background: white;
-            width: 90%;
-            max-width: 700px;
-            height: 85vh;
-            border-radius: 20px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .modal-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 15px;
-            text-align: center;
-            font-weight: bold;
-            position: relative;
-        }
-        .close-btn {
-            position: absolute;
-            right: 15px;
-            top: 15px;
-            cursor: pointer;
-            font-size: 20px;
-        }
-        .tabs {
-            display: flex;
-            background: #f0f2f5;
-            border-bottom: 2px solid #ddd;
-            overflow-x: auto;
-        }
-        .tab {
-            flex: 1;
-            text-align: center;
-            padding: 12px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s;
-            white-space: nowrap;
-        }
-        .tab.active {
-            background: white;
-            color: #667eea;
-            border-bottom: 2px solid #667eea;
-        }
-        .tab-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .rank-item {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-        }
-        .rank-num {
-            font-size: 20px;
-            font-weight: bold;
-            width: 40px;
-        }
-        .rank-num.top1 {
-            color: #FFD700;
-            text-shadow: 0 0 5px gold;
-        }
-        .rank-num.top2 {
-            color: #C0C0C0;
-        }
-        .rank-num.top3 {
-            color: #CD7F32;
-        }
-        .badge-item {
-            background: white;
-            border: 1px solid #eee;
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 10px;
-            display: inline-block;
-            width: calc(33% - 8px);
-            margin: 4px;
-            vertical-align: top;
-        }
-        .btn-sm {
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 12px;
-            cursor: pointer;
-            border: none;
-            color: white;
-            margin: 2px;
-        }
+        #leaderboard-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1003; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 90%; max-width: 700px; height: 85vh; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; }
+        .modal-header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; text-align: center; font-weight: bold; position: relative; }
+        .close-btn { position: absolute; right: 15px; top: 15px; cursor: pointer; font-size: 20px; }
+        .tabs { display: flex; background: #f0f2f5; border-bottom: 2px solid #ddd; overflow-x: auto; }
+        .tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; font-weight: bold; transition: all 0.2s; white-space: nowrap; }
+        .tab.active { background: white; color: #667eea; border-bottom: 2px solid #667eea; }
+        .tab-content { flex: 1; overflow-y: auto; padding: 15px; display: none; }
+        .tab-content.active { display: block; }
+        .rank-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        .rank-num { font-size: 20px; font-weight: bold; width: 40px; }
+        .rank-num.top1 { color: #FFD700; text-shadow: 0 0 5px gold; }
+        .rank-num.top2 { color: #C0C0C0; }
+        .rank-num.top3 { color: #CD7F32; }
+        .badge-item { background: white; border: 1px solid #eee; border-radius: 10px; padding: 12px; margin-bottom: 10px; display: inline-block; width: calc(33% - 8px); margin: 4px; vertical-align: top; }
+        .btn-sm { padding: 5px 12px; border-radius: 15px; font-size: 12px; cursor: pointer; border: none; color: white; margin: 2px; }
 
-        #avatar-input {
-            display: none;
-        }
-        .delete-btn {
-            background: none;
-            border: none;
-            color: #e74c3c;
-            cursor: pointer;
-            font-size: 11px;
-            padding: 0 5px;
-        }
-        .delete-btn:hover {
-            text-decoration: underline;
-        }
-        .system-msg {
-            text-align: center;
-            color: #888;
-            font-size: 12px;
-            margin: 10px 0;
-        }
+        #avatar-input { display: none; }
+        .delete-btn { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 11px; padding: 0 5px; }
+        .delete-btn:hover { text-decoration: underline; }
+        .system-msg { text-align: center; color: #888; font-size: 12px; margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -715,6 +267,7 @@
             <div class="coin-display" id="coin-display">💰 0</div>
             <button class="header-btn" onclick="showChangeNameDialog()">✏️ 改名</button>
             <button class="header-btn" onclick="openShop()">🛒 商城</button>
+            <button class="header-btn" onclick="openFriendsPanel()">👥 好友</button>
             <button class="header-btn" onclick="openLeaderboard()">🏆 排行</button>
             <button class="header-btn logout-btn" onclick="logout()">🚪 退出</button>
         </div>
@@ -724,7 +277,6 @@
 
     <div id="admin-panel"></div>
 
-    <!-- 修复滚动：独立滚动容器 -->
     <div class="messages-container" id="messages-container">
         <div id="messages"></div>
     </div>
@@ -752,6 +304,7 @@
     </div>
 </div>
 
+<!-- 商城面板 -->
 <div id="shop-panel">
     <div class="shop-header">
         <h3>🛒 商城 | 我的金币: <span id="shop-coins">0</span></h3>
@@ -760,6 +313,25 @@
     <div class="shop-content" id="shop-content"></div>
 </div>
 
+<!-- 好友面板 -->
+<div id="friends-panel">
+    <div class="friends-header">
+        <h3>👥 我的好友</h3>
+        <span class="close-friends" onclick="closeFriendsPanel()">×</span>
+    </div>
+    <div class="friends-tabs">
+        <div class="friends-tab active" onclick="switchFriendsTab('friends')">好友</div>
+        <div class="friends-tab" onclick="switchFriendsTab('requests')">请求</div>
+        <div class="friends-tab" onclick="switchFriendsTab('blocked')">黑名单</div>
+    </div>
+    <div id="friends-list" class="friends-list"></div>
+    <div class="add-friend-area">
+        <input type="text" id="add-friend-name" placeholder="输入用户名添加好友">
+        <button onclick="addFriend()" style="padding:8px 16px; background:#667eea; color:white; border:none; border-radius:20px;">添加</button>
+    </div>
+</div>
+
+<!-- 排行榜模态框 -->
 <div id="leaderboard-modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -788,8 +360,10 @@
     let userTail = "tail-default";
     let userFrame = "";
     let autoLoginDone = false;
+    let privateChats = {}; // 存储私聊窗口DOM
+    let privateMessages = {}; // 存储私聊消息记录 { targetUser: [{ from, content, time, self }] }
 
-    // 商城商品配置
+    // 商城商品配置（与原有相同）
     const SHOP_ITEMS = {
         bubbles: [
             { name: "默认气泡", id: "bubble-default", price: 0, desc: "经典白色气泡" },
@@ -843,24 +417,16 @@
     // ========== 滚动辅助 ==========
     function scrollToBottom() {
         const container = document.getElementById('messages-container');
-        if (container) {
-            container.scrollTop = container.scrollHeight;
-        }
+        if (container) container.scrollTop = container.scrollHeight;
     }
-
-    // 强制重绘滚动条（修复某些情况下滚动失效）
     function fixScrollability() {
         const container = document.getElementById('messages-container');
         if (container) {
-            // 保存滚动位置
             let wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
-            // 临时隐藏滚动条再显示，强制重绘
             container.style.overflow = 'hidden';
             setTimeout(() => {
                 container.style.overflow = 'auto';
-                if (wasAtBottom) {
-                    container.scrollTop = container.scrollHeight;
-                }
+                if (wasAtBottom) container.scrollTop = container.scrollHeight;
             }, 10);
         }
     }
@@ -898,10 +464,7 @@
                 res.history.forEach(renderMsg);
                 socket.emit('set user', user);
 
-                setTimeout(() => {
-                    scrollToBottom();
-                    fixScrollability();
-                }, 100);
+                setTimeout(() => { scrollToBottom(); fixScrollability(); }, 100);
             } else {
                 localStorage.removeItem('chatPass');
                 alert(res.msg);
@@ -917,7 +480,6 @@
         doLogin(user, pass, inviteCode);
     }
 
-    // 自动登录
     window.addEventListener('load', () => {
         if (autoLoginDone) return;
         let savedUser = localStorage.getItem('chatUser');
@@ -955,31 +517,23 @@
         }
     }
 
-    // ========== 通用UI函数 ==========
+    // ========== 通用UI ==========
     function updateCoinDisplay() {
         document.getElementById('coin-display').innerHTML = `💰 ${userCoins}`;
         let shopCoins = document.getElementById('shop-coins');
         if (shopCoins) shopCoins.innerText = userCoins;
     }
-
     function updateAvatarFrame() {
         let frameDiv = document.getElementById('avatar-frame');
         frameDiv.className = 'avatar-frame ' + userFrame;
     }
-
-    function openAvatarUpload() {
-        document.getElementById('avatar-input').click();
-    }
-
+    function openAvatarUpload() { document.getElementById('avatar-input').click(); }
     function uploadAvatar() {
         let file = document.getElementById('avatar-input').files[0];
         if (!file) return;
-        if (file.size > 2 * 1024 * 1024) {
-            alert("图片大小不能超过2MB！");
-            return;
-        }
+        if (file.size > 2 * 1024 * 1024) { alert("图片大小不能超过2MB！"); return; }
         let reader = new FileReader();
-        reader.onload = function (e) {
+        reader.onload = function(e) {
             let avatarData = e.target.result;
             document.getElementById('current-avatar').src = avatarData;
             socket.emit('change avatar', { user: currentUser, avatarData: avatarData });
@@ -987,111 +541,55 @@
         };
         reader.readAsDataURL(file);
     }
-
     function showChangeNameDialog() {
         let newName = prompt("请输入新昵称（2-12个字符）:", currentUser);
         if (newName && newName.trim() && newName !== currentUser) {
-            if (newName.length < 2 || newName.length > 12) {
-                alert("昵称长度需在2-12个字符之间");
-                return;
-            }
-            if (/[<>'"]/.test(newName)) {
-                alert("昵称不能包含特殊字符 < > ' \"");
-                return;
-            }
+            if (newName.length < 2 || newName.length > 12) { alert("昵称长度需在2-12个字符之间"); return; }
+            if (/[<>'"]/.test(newName)) { alert("昵称不能包含特殊字符 < > ' \""); return; }
             socket.emit('change name', { oldName: currentUser, newName: newName.trim() }, (res) => {
                 if (res.status === 'ok') {
                     alert(`改名成功！新昵称：${newName}`);
                     currentUser = newName;
                     document.getElementById('current-username-display').innerText = newName;
                     localStorage.setItem('chatUser', newName);
-                } else {
-                    alert(res.msg);
-                }
+                } else alert(res.msg);
             });
         }
     }
 
     // ========== 商城 ==========
-    function openShop() {
-        let panel = document.getElementById('shop-panel');
-        panel.classList.add('open');
-        renderShop();
-    }
-    function closeShop() {
-        document.getElementById('shop-panel').classList.remove('open');
-    }
+    function openShop() { document.getElementById('shop-panel').classList.add('open'); renderShop(); }
+    function closeShop() { document.getElementById('shop-panel').classList.remove('open'); }
     function renderShop() {
         let content = document.getElementById('shop-content');
         if (!content) return;
         content.innerHTML = `
-            <div class="shop-category">
-                <h4>💬 气泡皮肤</h4>
-                ${SHOP_ITEMS.bubbles.map(item => `
-                    <div class="shop-item">
-                        <div class="shop-item-info">
-                            <div class="shop-item-name">${item.name}</div>
-                            <div class="shop-item-price">${item.price} 金币</div>
-                            <div style="font-size:11px; color:#888;">${item.desc}</div>
-                        </div>
-                        ${userBubble === item.id ? '<span class="equipped">已装备</span>' :
-                            `<button class="buy-btn" onclick="buyItem('bubble', '${item.id}', ${item.price})">购买</button>`}
-                    </div>
-                `).join('')}
-            </div>
-            <div class="shop-category">
-                <h4>✨ 尾灯特效</h4>
-                ${SHOP_ITEMS.tails.map(item => `
-                    <div class="shop-item">
-                        <div class="shop-item-info">
-                            <div class="shop-item-name">${item.name}</div>
-                            <div class="shop-item-price">${item.price} 金币</div>
-                            <div style="font-size:11px; color:#888;">${item.desc}</div>
-                        </div>
-                        ${userTail === item.id ? '<span class="equipped">已装备</span>' :
-                            `<button class="buy-btn" onclick="buyItem('tail', '${item.id}', ${item.price})">购买</button>`}
-                    </div>
-                `).join('')}
-            </div>
-            <div class="shop-category">
-                <h4>🖼️ 头像框</h4>
-                ${SHOP_ITEMS.frames.map(item => `
-                    <div class="shop-item">
-                        <div class="shop-item-info">
-                            <div class="shop-item-name">${item.name}</div>
-                            <div class="shop-item-price">${item.price} 金币</div>
-                            <div style="font-size:11px; color:#888;">${item.desc}</div>
-                        </div>
-                        ${userFrame === item.id ? '<span class="equipped">已装备</span>' :
-                            `<button class="buy-btn" onclick="buyItem('frame', '${item.id}', ${item.price})">购买</button>`}
-                    </div>
-                `).join('')}
-            </div>
+            <div class="shop-category"><h4>💬 气泡皮肤</h4>${SHOP_ITEMS.bubbles.map(item => `
+                <div class="shop-item"><div class="shop-item-info"><div class="shop-item-name">${item.name}</div><div class="shop-item-price">${item.price} 金币</div><div style="font-size:11px;">${item.desc}</div></div>
+                ${userBubble === item.id ? '<span class="equipped">已装备</span>' : `<button class="buy-btn" onclick="buyItem('bubble','${item.id}',${item.price})">购买</button>`}</div>`).join('')}</div>
+            <div class="shop-category"><h4>✨ 尾灯特效</h4>${SHOP_ITEMS.tails.map(item => `
+                <div class="shop-item"><div class="shop-item-info"><div class="shop-item-name">${item.name}</div><div class="shop-item-price">${item.price} 金币</div><div style="font-size:11px;">${item.desc}</div></div>
+                ${userTail === item.id ? '<span class="equipped">已装备</span>' : `<button class="buy-btn" onclick="buyItem('tail','${item.id}',${item.price})">购买</button>`}</div>`).join('')}</div>
+            <div class="shop-category"><h4>🖼️ 头像框</h4>${SHOP_ITEMS.frames.map(item => `
+                <div class="shop-item"><div class="shop-item-info"><div class="shop-item-name">${item.name}</div><div class="shop-item-price">${item.price} 金币</div><div style="font-size:11px;">${item.desc}</div></div>
+                ${userFrame === item.id ? '<span class="equipped">已装备</span>' : `<button class="buy-btn" onclick="buyItem('frame','${item.id}',${item.price})">购买</button>`}</div>`).join('')}</div>
         `;
     }
-
     function buyItem(type, itemId, price) {
-        if (userCoins < price) {
-            alert(`金币不足！需要 ${price} 金币，你只有 ${userCoins} 金币`);
-            return;
-        }
-        socket.emit('buy item', { user: currentUser, type: type, itemId: itemId, price: price }, (res) => {
+        if (userCoins < price) { alert(`金币不足！需要 ${price} 金币`); return; }
+        socket.emit('buy item', { user: currentUser, type, itemId, price }, (res) => {
             if (res.status === 'ok') {
                 userCoins = res.newCoins;
                 if (type === 'bubble') userBubble = itemId;
                 if (type === 'tail') userTail = itemId;
                 if (type === 'frame') userFrame = itemId;
-                updateCoinDisplay();
-                updateAvatarFrame();
-                renderShop();
+                updateCoinDisplay(); updateAvatarFrame(); renderShop();
                 alert(`购买成功！已装备 ${res.itemName}`);
-            } else {
-                alert(res.msg);
-            }
+            } else alert(res.msg);
         });
     }
 
-    // ========== 消息功能 ==========
+    // ========== 广场消息 ==========
     function toggleEmoji() {
         let panel = document.getElementById('emoji-panel');
         panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
@@ -1104,102 +602,58 @@
         let input = document.getElementById('msg-input');
         let msg = input.value.trim();
         if (msg) {
-            socket.emit('chat message', {
-                user: currentUser,
-                type: 'text',
-                content: msg,
-                bubble: userBubble,
-                tail: userTail
-            });
+            socket.emit('chat message', { user: currentUser, type: 'text', content: msg, bubble: userBubble, tail: userTail });
             input.value = '';
         }
     }
-
     function uploadImage() {
         let file = document.getElementById('image-input').files[0];
         if (!file) return;
-        if (file.size > 20 * 1024 * 1024) {
-            alert("图片大小不能超过20MB！");
-            return;
-        }
-
-        let loadingMsg = document.createElement('div');
-        loadingMsg.className = 'system-msg';
-        loadingMsg.innerText = '📸 图片上传中...';
-        document.getElementById('messages').appendChild(loadingMsg);
-        scrollToBottom();
-
+        if (file.size > 20 * 1024 * 1024) { alert("图片大小不能超过20MB！"); return; }
+        let loadingMsg = document.createElement('div'); loadingMsg.className = 'system-msg'; loadingMsg.innerText = '📸 图片上传中...';
+        document.getElementById('messages').appendChild(loadingMsg); scrollToBottom();
         let reader = new FileReader();
-        reader.onload = function (e) {
-            let imageData = e.target.result;
-            socket.emit('upload image', { imageData: imageData }, (res) => {
+        reader.onload = function(e) {
+            socket.emit('upload image', { imageData: e.target.result }, (res) => {
                 loadingMsg.remove();
                 if (res.success) {
-                    socket.emit('chat message', {
-                        user: currentUser,
-                        type: 'image',
-                        content: res.url,
-                        bubble: userBubble,
-                        tail: userTail
-                    });
-                } else {
-                    alert('图片上传失败: ' + (res.error || '未知错误'));
-                }
+                    socket.emit('chat message', { user: currentUser, type: 'image', content: res.url, bubble: userBubble, tail: userTail });
+                } else alert('图片上传失败: ' + (res.error || '未知错误'));
             });
         };
         reader.readAsDataURL(file);
         document.getElementById('image-input').value = '';
     }
-
-    // 接收消息
-    socket.on('chat message', (data) => {
-        renderMsg(data);
-        scrollToBottom();
-        fixScrollability(); // 确保滚动条可用
-    });
-
     function renderMsg(data) {
         let box = document.createElement('div');
         let tailClass = data.tail || 'tail-default';
         box.className = `msg-box ${data.user === currentUser ? 'self' : ''} ${tailClass}`;
         box.id = 'msg-' + data.id;
-
         let authsHtml = '';
         if (data.auths && data.auths.length > 0) {
             data.auths.forEach(auth => {
                 if (PRESET_MEDALS[auth.text]) {
-                    let medalClass = PRESET_MEDALS[auth.text];
-                    authsHtml += `<span class="medal ${medalClass}">${escapeHtml(auth.text)}</span> `;
+                    authsHtml += `<span class="medal ${PRESET_MEDALS[auth.text]}">${escapeHtml(auth.text)}</span> `;
                 } else {
-                    let badgeClass = auth.colorClass || 'c-green';
-                    authsHtml += `<span class="badge ${badgeClass}">${escapeHtml(auth.text)}</span> `;
+                    authsHtml += `<span class="badge ${auth.colorClass || 'c-green'}">${escapeHtml(auth.text)}</span> `;
                 }
             });
         }
-
         let bubbleClass = data.bubble || 'bubble-default';
         let contentHtml = data.type === 'image'
             ? `<img src="${data.content}" class="msg-image" onclick="window.open('${data.content}')" style="max-width:250px; max-height:250px; border-radius:10px; cursor:pointer;">`
             : `<div class="msg-content ${bubbleClass}">${escapeHtml(data.content)}</div>`;
-
         let deleteHtml = isAdmin ? `<button class="delete-btn" onclick="deleteMsg('${data.id}')">🗑️删除</button>` : '';
         let frameClass = data.frame ? `avatar-frame ${data.frame}` : 'avatar-frame';
-
         box.innerHTML = `<div class="${frameClass}"><img src="${data.avatar}" class="avatar" onclick="alert('${escapeHtml(data.user)}')"></div>
-            <div>
-                <div class="user-name">${escapeHtml(data.user)} ${authsHtml} <span style="font-size:9px;color:#aaa;">${data.time}</span> ${deleteHtml}</div>
-                ${contentHtml}
-            </div>`;
-
+            <div><div class="user-name">${escapeHtml(data.user)} ${authsHtml} <span style="font-size:9px;color:#aaa;">${data.time}</span> ${deleteHtml}</div>${contentHtml}</div>`;
         document.getElementById('messages').appendChild(box);
     }
-
     function escapeHtml(text) {
         let div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
-
     function showPrivateNotification(title, message) {
         let notif = document.createElement('div');
         notif.className = 'private-notification';
@@ -1207,180 +661,293 @@
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 5000);
     }
-
+    socket.on('chat message', (data) => { renderMsg(data); scrollToBottom(); fixScrollability(); });
     socket.on('private notification', (data) => {
         showPrivateNotification(data.title, data.message);
-        if (data.coins !== undefined) {
-            userCoins = data.coins;
-            updateCoinDisplay();
+        if (data.coins !== undefined) { userCoins = data.coins; updateCoinDisplay(); }
+    });
+
+    // ========== 好友系统 ==========
+    function openFriendsPanel() { document.getElementById('friends-panel').classList.add('open'); updateFriendsPanel('friends'); }
+    function closeFriendsPanel() { document.getElementById('friends-panel').classList.remove('open'); }
+    function switchFriendsTab(tab) {
+        document.querySelectorAll('.friends-tab').forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+        updateFriendsPanel(tab);
+    }
+    function updateFriendsPanel(tab = 'friends') {
+        socket.emit('get friends data', { user: currentUser }, (data) => {
+            let listDiv = document.getElementById('friends-list');
+            if (tab === 'friends') {
+                if (!data.friends.length) listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">暂无好友，快去添加吧~</div>';
+                else {
+                    listDiv.innerHTML = data.friends.map(f => `
+                        <div class="friend-item" onclick="openPrivateChat('${f.name}')">
+                            <div class="friend-info"><img src="${f.avatar}" class="friend-avatar"><div class="friend-details"><div class="friend-name">${escapeHtml(f.name)}</div><div class="friend-badges">${f.auths.map(a => `<span class="badge ${a.colorClass || 'c-green'}" style="font-size:8px;">${escapeHtml(a.text)}</span>`).join('')}</div></div></div>
+                            <div class="friend-actions" onclick="event.stopPropagation()">
+                                <button onclick="openPrivateChat('${f.name}')" style="background:#667eea; color:white;">💬</button>
+                                <button onclick="removeFriend('${f.name}')" style="background:#e74c3c; color:white;">删</button>
+                                <button onclick="blockUser('${f.name}')" style="background:#95a5a6; color:white;">🚫</button>
+                            </div>
+                        </div>`).join('');
+                }
+            } else if (tab === 'requests') {
+                if (!data.friendRequests.length) listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">暂无好友请求</div>';
+                else {
+                    listDiv.innerHTML = data.friendRequests.map(req => `
+                        <div class="friend-item">
+                            <div class="friend-info"><img src="${req.avatar}" class="friend-avatar"><div><div class="friend-name">${escapeHtml(req.from)}</div></div></div>
+                            <div class="friend-actions">
+                                <button onclick="acceptFriend('${req.from}')" style="background:#2ecc71; color:white;">✓ 接受</button>
+                                <button onclick="rejectFriend('${req.from}')" style="background:#e74c3c; color:white;">✗ 拒绝</button>
+                            </div>
+                        </div>`).join('');
+                }
+            } else if (tab === 'blocked') {
+                if (!data.blocked.length) listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">暂无黑名单</div>';
+                else {
+                    listDiv.innerHTML = data.blocked.map(b => `
+                        <div class="friend-item">
+                            <div class="friend-info"><img src="${b.avatar}" class="friend-avatar"><div><div class="friend-name">${escapeHtml(b.name)}</div></div></div>
+                            <div class="friend-actions"><button onclick="unblockUser('${b.name}')" style="background:#3498db; color:white;">解除拉黑</button></div>
+                        </div>`).join('');
+                }
+            }
+        });
+    }
+    function addFriend() {
+        let name = document.getElementById('add-friend-name').value.trim();
+        if (!name) return alert("请输入用户名");
+        if (name === currentUser) return alert("不能添加自己为好友");
+        socket.emit('add friend', { user: currentUser, target: name }, (res) => {
+            alert(res.msg);
+            if (res.status === 'ok') {
+                document.getElementById('add-friend-name').value = '';
+                updateFriendsPanel('friends');
+            }
+        });
+    }
+    function acceptFriend(fromUser) {
+        socket.emit('accept friend', { user: currentUser, from: fromUser }, (res) => {
+            alert(res.msg);
+            updateFriendsPanel('requests');
+            updateFriendsPanel('friends');
+        });
+    }
+    function rejectFriend(fromUser) {
+        socket.emit('reject friend', { user: currentUser, from: fromUser }, (res) => {
+            alert(res.msg);
+            updateFriendsPanel('requests');
+        });
+    }
+    function removeFriend(friendName) {
+        if (confirm(`确定要删除好友 ${friendName} 吗？`)) {
+            socket.emit('remove friend', { user: currentUser, target: friendName }, (res) => {
+                alert(res.msg);
+                updateFriendsPanel('friends');
+                if (privateChats[friendName]) closePrivateChat(friendName);
+            });
+        }
+    }
+    function blockUser(userName) {
+        if (confirm(`确定要拉黑 ${userName} 吗？`)) {
+            socket.emit('block user', { user: currentUser, target: userName }, (res) => {
+                alert(res.msg);
+                updateFriendsPanel('friends');
+                updateFriendsPanel('blocked');
+                if (privateChats[userName]) closePrivateChat(userName);
+            });
+        }
+    }
+    function unblockUser(userName) {
+        socket.emit('unblock user', { user: currentUser, target: userName }, (res) => {
+            alert(res.msg);
+            updateFriendsPanel('blocked');
+        });
+    }
+    socket.on('friend request notification', (data) => {
+        alert(`📬 ${data.from} 向你发送了好友请求！`);
+        updateFriendsPanel('requests');
+    });
+    socket.on('friend accepted notification', (data) => {
+        alert(`🎉 ${data.by} 接受了你的好友请求！`);
+        updateFriendsPanel('friends');
+    });
+
+    // ========== 私聊系统 ==========
+    function openPrivateChat(username) {
+        if (privateChats[username]) { privateChats[username].style.display = 'flex'; return; }
+        let chatWindow = document.createElement('div');
+        chatWindow.className = 'private-chat-window';
+        chatWindow.id = `pc-${username}`;
+        chatWindow.innerHTML = `
+            <div class="pc-header"><h4>💬 与 ${escapeHtml(username)} 私聊</h4><span class="pc-close" onclick="closePrivateChat('${username}')">×</span></div>
+            <div class="pc-messages" id="pc-msgs-${username}"></div>
+            <div class="pc-input-area">
+                <input type="text" id="pc-input-${username}" placeholder="输入消息..." onkeypress="if(event.key === 'Enter') sendPrivateMsg('${username}')">
+                <button class="pc-send" onclick="sendPrivateMsg('${username}')">发送</button>
+                <input type="file" id="pc-file-${username}" accept="image/*" style="display:none;" onchange="uploadPrivateImage('${username}')">
+                <button class="icon-btn" onclick="document.getElementById('pc-file-${username}').click()">🖼️</button>
+            </div>
+        `;
+        document.body.appendChild(chatWindow);
+        privateChats[username] = chatWindow;
+        if (!privateMessages[username]) privateMessages[username] = [];
+        renderPrivateMessages(username);
+    }
+    function closePrivateChat(username) {
+        if (privateChats[username]) { privateChats[username].remove(); delete privateChats[username]; }
+    }
+    function sendPrivateMsg(toUser) {
+        let input = document.getElementById(`pc-input-${toUser}`);
+        let msg = input.value.trim();
+        if (msg) {
+            socket.emit('private message', { from: currentUser, to: toUser, content: msg, type: 'text' });
+            addPrivateMessage(toUser, { from: currentUser, content: msg, time: new Date().toLocaleTimeString(), self: true, type: 'text' });
+            input.value = '';
+        }
+    }
+    function uploadPrivateImage(toUser) {
+        let fileInput = document.getElementById(`pc-file-${toUser}`);
+        let file = fileInput.files[0];
+        if (!file) return;
+        if (file.size > 20 * 1024 * 1024) { alert("图片不能超过20MB"); return; }
+        let loadingMsg = document.createElement('div'); loadingMsg.innerText = '📸 上传中...';
+        let msgsDiv = document.getElementById(`pc-msgs-${toUser}`);
+        if (msgsDiv) msgsDiv.appendChild(loadingMsg);
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            socket.emit('upload image', { imageData: e.target.result }, (res) => {
+                if (loadingMsg) loadingMsg.remove();
+                if (res.success) {
+                    socket.emit('private message', { from: currentUser, to: toUser, content: res.url, type: 'image' });
+                    addPrivateMessage(toUser, { from: currentUser, content: res.url, time: new Date().toLocaleTimeString(), self: true, type: 'image' });
+                } else alert('图片上传失败');
+            });
+        };
+        reader.readAsDataURL(file);
+        fileInput.value = '';
+    }
+    function addPrivateMessage(toUser, msg) {
+        if (!privateMessages[toUser]) privateMessages[toUser] = [];
+        privateMessages[toUser].push(msg);
+        renderPrivateMessages(toUser);
+    }
+    function renderPrivateMessages(username) {
+        let msgsDiv = document.getElementById(`pc-msgs-${username}`);
+        if (!msgsDiv) return;
+        let msgs = privateMessages[username] || [];
+        msgsDiv.innerHTML = msgs.map(msg => `
+            <div class="pc-msg ${msg.self ? 'self' : ''}">
+                <div class="pc-msg-content">
+                    <strong>${msg.self ? '我' : escapeHtml(msg.from)}</strong><br>
+                    ${msg.type === 'image' ? `<img src="${msg.content}" style="max-width:150px; border-radius:8px; cursor:pointer;" onclick="window.open('${msg.content}')">` : escapeHtml(msg.content)}
+                    <div style="font-size:10px; opacity:0.6;">${msg.time}</div>
+                </div>
+            </div>
+        `).join('');
+        msgsDiv.scrollTop = msgsDiv.scrollHeight;
+    }
+    socket.on('private message', (data) => {
+        if (data.from === currentUser) return; // 自己发的已经在本地添加
+        if (!privateMessages[data.from]) privateMessages[data.from] = [];
+        privateMessages[data.from].push({
+            from: data.from,
+            content: data.content,
+            time: data.time,
+            self: false,
+            type: data.type
+        });
+        renderPrivateMessages(data.from);
+        if (!privateChats[data.from]) {
+            showPrivateNotification(`💬 来自 ${data.from}`, data.type === 'image' ? '[图片]' : data.content);
         }
     });
 
-    // ========== 管理员面板 ==========
+    // ========== 管理员功能 ==========
     function renderAdminPanel() {
         let panel = document.getElementById('admin-panel');
         if (!panel) return;
         panel.style.display = 'block';
         panel.innerHTML = `
-            <div class="admin-section">
-                <b>💰 金币管理</b><br>
-                <select id="select-user-coin" class="admin-select"><option value="">--选玩家--</option></select>
-                <input type="number" id="coin-amount" placeholder="金币数量" style="width:80px; padding:4px;">
-                <button onclick="giveCoins()" class="btn-sm" style="background:#f39c12;">🎁 赠送金币</button>
-            </div>
-            <div class="admin-section">
-                <b>📜 官方认证管理</b><br>
-                <input type="text" id="new-badge-name" placeholder="认证名" style="width:100px; padding:4px;">
-                <select id="new-badge-color" class="admin-select">
-                    <option value="c-green">草地绿</option>
-                    <option value="c-blue">天空蓝</option>
-                    <option value="c-red">苹果红</option>
-                    <option value="c-purple">葡萄紫</option>
-                    <option value="c-orange">活力橙</option>
-                    <option value="c-pink">猛男粉</option>
-                    <option value="c-cyan">深海青</option>
-                    <option value="c-black">黑金贵族</option>
-                    <option value="c-gold">闪耀金</option>
-                    <option value="c-rainbow">至尊彩虹流光</option>
-                    <option value="c-darkglow">暗红流光</option>
-                </select>
-                <button onclick="createBadge()" class="btn-sm" style="background:#0984e3;">创建认证</button>
-                <select id="select-user-badge" class="admin-select"><option value="">--选玩家--</option></select>
-                <select id="select-badge-name" class="admin-select"><option value="">--选认证--</option></select>
-                <button onclick="giveBadge('give')" class="btn-sm" style="background:#00b894;">发放认证</button>
-                <button onclick="giveBadge('remove')" class="btn-sm" style="background:#d63031;">清空认证</button>
-            </div>
-            <div class="admin-section">
-                <b>🎖️ 炫酷徽章管理</b><br>
-                <select id="select-user-medal" class="admin-select"><option value="">--选玩家--</option></select>
-                <select id="select-medal-name" class="admin-select">
-                    <option value="">--选徽章--</option>
-                    ${Object.keys(PRESET_MEDALS).map(m => `<option value="${m}">${m}</option>`).join('')}
-                </select>
-                <button onclick="giveMedal('give')" class="btn-sm" style="background:#00b894;">🎁 发放徽章</button>
-                <button onclick="giveMedal('remove')" class="btn-sm" style="background:#e67e22;">🗑️ 收回徽章</button>
-                <button onclick="giveMedal('clear')" class="btn-sm" style="background:#d63031;">💢 清空全部</button>
-            </div>
-            <div class="admin-section">
-                <b>⚙️ 其他管理</b>
-                <button onclick="adminSettle()" class="btn-sm" style="background:#e17055;">🏆 结算榜单</button>
-                <button onclick="adminClearMessages()" class="btn-sm" style="background:#e74c3c;">🗑️ 清空聊天记录</button>
-            </div>
+            <div class="admin-section"><b>💰 金币管理</b><br><select id="select-user-coin" class="admin-select"><option value="">--选玩家--</option></select><input type="number" id="coin-amount" placeholder="金币数量" style="width:80px;"><button onclick="giveCoins()" class="btn-sm" style="background:#f39c12;">🎁 赠送金币</button></div>
+            <div class="admin-section"><b>📜 官方认证管理</b><br><input type="text" id="new-badge-name" placeholder="认证名"><select id="new-badge-color" class="admin-select"><option value="c-green">草地绿</option><option value="c-blue">天空蓝</option><option value="c-red">苹果红</option><option value="c-purple">葡萄紫</option><option value="c-orange">活力橙</option><option value="c-pink">猛男粉</option><option value="c-cyan">深海青</option><option value="c-black">黑金贵族</option><option value="c-gold">闪耀金</option><option value="c-rainbow">至尊彩虹流光</option><option value="c-darkglow">暗红流光</option></select><button onclick="createBadge()" class="btn-sm" style="background:#0984e3;">创建认证</button><select id="select-user-badge" class="admin-select"><option value="">--选玩家--</option></select><select id="select-badge-name" class="admin-select"><option value="">--选认证--</option></select><button onclick="giveBadge('give')" class="btn-sm" style="background:#00b894;">发放认证</button><button onclick="giveBadge('remove')" class="btn-sm" style="background:#d63031;">清空认证</button></div>
+            <div class="admin-section"><b>🎖️ 炫酷徽章管理</b><br><select id="select-user-medal" class="admin-select"><option value="">--选玩家--</option></select><select id="select-medal-name" class="admin-select"><option value="">--选徽章--</option>${Object.keys(PRESET_MEDALS).map(m => `<option value="${m}">${m}</option>`).join('')}</select><button onclick="giveMedal('give')" class="btn-sm" style="background:#00b894;">🎁 发放徽章</button><button onclick="giveMedal('remove')" class="btn-sm" style="background:#e67e22;">🗑️ 收回徽章</button><button onclick="giveMedal('clear')" class="btn-sm" style="background:#d63031;">💢 清空全部</button></div>
+            <div class="admin-section"><b>⚙️ 其他管理</b><button onclick="adminSettle()" class="btn-sm" style="background:#e17055;">🏆 结算榜单</button><button onclick="adminClearMessages()" class="btn-sm" style="background:#e74c3c;">🗑️ 清空聊天记录</button></div>
         `;
-
         socket.emit('get users list', (users) => {
             let options = '<option value="">--选玩家--</option>' + users.map(u => `<option value="${u}">${u}</option>`).join('');
-            let selectCoin = document.getElementById('select-user-coin');
-            let selectBadge = document.getElementById('select-user-badge');
-            let selectMedal = document.getElementById('select-user-medal');
-            if (selectCoin) selectCoin.innerHTML = options;
-            if (selectBadge) selectBadge.innerHTML = options;
-            if (selectMedal) selectMedal.innerHTML = options;
+            ['select-user-coin', 'select-user-badge', 'select-user-medal'].forEach(id => {
+                let el = document.getElementById(id); if (el) el.innerHTML = options;
+            });
         });
         socket.emit('get badges list', (badges) => {
             let select = document.getElementById('select-badge-name');
-            if (select) {
-                select.innerHTML = '<option value="">--选认证--</option>' + badges.map(b => `<option value="${b}">${b}</option>`).join('');
-            }
+            if (select) select.innerHTML = '<option value="">--选认证--</option>' + badges.map(b => `<option value="${b}">${b}</option>`).join('');
         });
     }
-
     function giveCoins() {
         let target = document.getElementById('select-user-coin').value;
         let amount = parseInt(document.getElementById('coin-amount').value);
         let pass = document.getElementById('invite').value.trim();
         if (!target) return alert("请选择玩家！");
         if (!amount || amount <= 0) return alert("请输入正数金币数量！");
-        socket.emit('admin give coins', { adminPass: pass, targetUser: target, amount: amount }, (res) => {
-            alert(res.msg);
-        });
+        socket.emit('admin give coins', { adminPass: pass, targetUser: target, amount: amount }, res => alert(res.msg));
     }
-
     function createBadge() {
         let name = document.getElementById('new-badge-name').value.trim();
         let color = document.getElementById('new-badge-color').value;
         let pass = document.getElementById('invite').value.trim();
         if (!name) return alert("请输入认证名称！");
-        socket.emit('admin create badge', { adminPass: pass, name: name, colorClass: color });
+        socket.emit('admin create badge', { adminPass: pass, name, colorClass: color });
         document.getElementById('new-badge-name').value = '';
     }
-
     function giveBadge(type) {
         let target = document.getElementById('select-user-badge').value;
         let badgeName = document.getElementById('select-badge-name').value;
         let pass = document.getElementById('invite').value.trim();
         if (!target) return alert("请先选择玩家！");
         if (type === 'give' && !badgeName) return alert("请先选择认证！");
-        socket.emit('admin give auth', { adminPass: pass, targetUser: target, type: type, badgeName: badgeName }, (res) => {
-            alert(res.msg);
-            if (res.status === 'ok') openLeaderboard();
-        });
+        socket.emit('admin give auth', { adminPass: pass, targetUser: target, type, badgeName }, res => { alert(res.msg); if (res.status === 'ok') openLeaderboard(); });
     }
-
     function giveMedal(type) {
         let target = document.getElementById('select-user-medal').value;
         let medalName = document.getElementById('select-medal-name').value;
         let pass = document.getElementById('invite').value.trim();
         if (!target) return alert("请先选择玩家！");
         if (type === 'give' && !medalName) return alert("请先选择徽章！");
-        socket.emit('admin give medal', { adminPass: pass, targetUser: target, type: type, medalName: medalName }, (res) => {
-            alert(res.msg);
-            if (res.status === 'ok') openLeaderboard();
-        });
+        socket.emit('admin give medal', { adminPass: pass, targetUser: target, type, medalName }, res => { alert(res.msg); if (res.status === 'ok') openLeaderboard(); });
     }
-
     function adminSettle() {
         let pass = document.getElementById('invite').value.trim();
         if (confirm("确定要结算榜单并全服发奖吗？")) socket.emit('admin trigger settle', { adminPass: pass });
     }
-
     function adminClearMessages() {
         let pass = document.getElementById('invite').value.trim();
-        if (confirm("确定要清空所有聊天记录吗？此操作不可恢复！")) {
-            socket.emit('admin clear messages', { adminPass: pass });
-        }
+        if (confirm("确定要清空所有聊天记录吗？")) socket.emit('admin clear messages', { adminPass: pass });
     }
-
-    // ========== 消息删除 ==========
-    socket.on('delete message', (msgId) => {
-        let el = document.getElementById('msg-' + msgId);
-        if (el) el.remove();
-    });
-
-    function deleteMsg(msgId) {
-        let pass = document.getElementById('invite').value.trim();
-        if (confirm("确定要全服删除这条消息吗？")) {
-            socket.emit('admin delete message', { adminPass: pass, msgId: msgId });
-        }
-    }
-
-    // ========== 系统消息 ==========
-    socket.on('announcement', text => document.getElementById('marquee').innerText = text);
-    socket.on('system msg', text => {
-        let div = document.createElement('div');
-        div.className = 'system-msg';
-        div.innerText = text;
-        document.getElementById('messages').appendChild(div);
-        scrollToBottom();
-    });
-
-    // ========== 用户列表更新 ==========
     socket.on('update users list', (users) => {
         if (isAdmin) {
             let options = '<option value="">--选玩家--</option>' + users.map(u => `<option value="${u}">${u}</option>`).join('');
-            let selectCoin = document.getElementById('select-user-coin');
-            let selectBadge = document.getElementById('select-user-badge');
-            let selectMedal = document.getElementById('select-user-medal');
-            if (selectCoin) selectCoin.innerHTML = options;
-            if (selectBadge) selectBadge.innerHTML = options;
-            if (selectMedal) selectMedal.innerHTML = options;
+            ['select-user-coin', 'select-user-badge', 'select-user-medal'].forEach(id => {
+                let el = document.getElementById(id); if (el) el.innerHTML = options;
+            });
         }
     });
     socket.on('update badges list', (badges) => {
         if (isAdmin && document.getElementById('select-badge-name')) {
-            let select = document.getElementById('select-badge-name');
-            select.innerHTML = '<option value="">--选认证--</option>' + badges.map(b => `<option value="${b}">${b}</option>`).join('');
+            document.getElementById('select-badge-name').innerHTML = '<option value="">--选认证--</option>' + badges.map(b => `<option value="${b}">${b}</option>`).join('');
         }
+    });
+    socket.on('delete message', (msgId) => { let el = document.getElementById('msg-' + msgId); if (el) el.remove(); });
+    function deleteMsg(msgId) {
+        let pass = document.getElementById('invite').value.trim();
+        if (confirm("确定要全服删除这条消息吗？")) socket.emit('admin delete message', { adminPass: pass, msgId });
+    }
+    socket.on('announcement', text => document.getElementById('marquee').innerText = text);
+    socket.on('system msg', text => {
+        let div = document.createElement('div'); div.className = 'system-msg'; div.innerText = text;
+        document.getElementById('messages').appendChild(div); scrollToBottom();
     });
 
     // ========== 排行榜 ==========
@@ -1393,73 +960,43 @@
         let targetContent = document.getElementById('tab-' + tabId);
         if (targetContent) targetContent.classList.add('active');
     }
-
     function openLeaderboard() {
         let modal = document.getElementById('leaderboard-modal');
         if (modal) modal.style.display = 'flex';
         socket.emit('get data panels', (data) => {
             let renderList = (arr, empty) => arr.length ? arr.map((u, i) => `
-                <div class="rank-item">
-                    <div class="rank-num ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</div>
-                    <img src="${u.avatar}" style="width:35px; height:35px; border-radius:50%; margin-right:10px;">
-                    <div style="flex:1;"><strong>${escapeHtml(u.name)}</strong></div>
-                    <div style="color:#667eea; font-weight:bold;">${u.score} 次</div>
-                </div>
+                <div class="rank-item"><div class="rank-num ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</div><img src="${u.avatar}" style="width:35px;height:35px;border-radius:50%;margin-right:10px;"><div style="flex:1;"><strong>${escapeHtml(u.name)}</strong></div><div style="color:#667eea;font-weight:bold;">${u.score} 次</div></div>
             `).join('') : `<p style="text-align:center;color:#999;">${empty}</p>`;
-
-            let dailyDiv = document.getElementById('tab-daily');
-            let weeklyDiv = document.getElementById('tab-weekly');
-            if (dailyDiv) dailyDiv.innerHTML = renderList(data.boards.dailyBoard.map(u => ({ name: u.name, avatar: u.avatar, score: u.stats.daily })), "今日暂无数据");
-            if (weeklyDiv) weeklyDiv.innerHTML = renderList(data.boards.weeklyBoard.map(u => ({ name: u.name, avatar: u.avatar, score: u.stats.weekly })), "本周暂无数据");
-
+            document.getElementById('tab-daily').innerHTML = renderList(data.boards.dailyBoard.map(u => ({ name: u.name, avatar: u.avatar, score: u.stats.daily })), "今日暂无数据");
+            document.getElementById('tab-weekly').innerHTML = renderList(data.boards.weeklyBoard.map(u => ({ name: u.name, avatar: u.avatar, score: u.stats.weekly })), "本周暂无数据");
             let richDiv = document.getElementById('tab-rich');
             if (richDiv && data.richBoard) {
                 richDiv.innerHTML = data.richBoard.length ? data.richBoard.map((u, i) => `
-                    <div class="rank-item">
-                        <div class="rank-num ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</div>
-                        <img src="${u.avatar}" style="width:35px; height:35px; border-radius:50%; margin-right:10px;">
-                        <div style="flex:1;"><strong>${escapeHtml(u.name)}</strong></div>
-                        <div style="color:#f39c12; font-weight:bold;">💰 ${u.coins} 金币</div>
-                    </div>
+                    <div class="rank-item"><div class="rank-num ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</div><img src="${u.avatar}" style="width:35px;height:35px;border-radius:50%;margin-right:10px;"><div style="flex:1;"><strong>${escapeHtml(u.name)}</strong></div><div style="color:#f39c12;">💰 ${u.coins} 金币</div></div>
                 `).join('') : '<p style="text-align:center;color:#999;">暂无财富数据</p>';
             }
-
             let statsDiv = document.getElementById('tab-stats');
             if (statsDiv) {
-                let sHtml = `<h4 style="margin:10px 0;">📜 官方认证</h4><div style="display:flex; flex-wrap:wrap;">`;
+                let sHtml = `<h4 style="margin:10px 0;">📜 官方认证</h4><div style="display:flex;flex-wrap:wrap;">`;
                 let hasBadges = false;
                 for (let title in data.stats.badgeDirectory) {
                     if (!PRESET_MEDALS[title]) {
                         hasBadges = true;
                         let info = data.stats.badgeDirectory[title];
-                        let badgeClass = info.colorClass || 'c-green';
-                        sHtml += `
-                            <div class="badge-item">
-                                <div style="margin-bottom:8px;"><span class="badge ${badgeClass}" style="font-size:14px; padding:4px 12px;">${escapeHtml(title)}</span></div>
-                                <div style="font-size:12px; color:#666;">👥 获得: ${info.count} 人</div>
-                            </div>
-                        `;
+                        sHtml += `<div class="badge-item"><div><span class="badge ${info.colorClass || 'c-green'}" style="font-size:14px;padding:4px 12px;">${escapeHtml(title)}</span></div><div style="font-size:12px;">👥 获得: ${info.count} 人</div></div>`;
                     }
                 }
-                if (!hasBadges) sHtml += `<p style="color:#999; width:100%;">暂无官方认证</p>`;
-                sHtml += `</div><h4 style="margin:10px 0;">🎖️ 炫酷徽章</h4><div style="display:flex; flex-wrap:wrap;">`;
-
+                if (!hasBadges) sHtml += `<p style="color:#999;width:100%;">暂无官方认证</p>`;
+                sHtml += `</div><h4 style="margin:10px 0;">🎖️ 炫酷徽章</h4><div style="display:flex;flex-wrap:wrap;">`;
                 let hasMedals = false;
                 for (let title in data.stats.badgeDirectory) {
                     if (PRESET_MEDALS[title]) {
                         hasMedals = true;
                         let info = data.stats.badgeDirectory[title];
-                        let medalClass = PRESET_MEDALS[title];
-                        sHtml += `
-                            <div class="badge-item">
-                                <div style="margin-bottom:8px;"><span class="medal ${medalClass}" style="font-size:14px; padding:4px 12px;">${escapeHtml(title)}</span></div>
-                                <div style="font-size:12px; color:#666;">👥 获得: ${info.count} 人</div>
-                                <div style="font-size:11px; color:#888; margin-top:5px;">🏅 ${info.holders.map(h => escapeHtml(h)).join(', ') || '暂无'}</div>
-                            </div>
-                        `;
+                        sHtml += `<div class="badge-item"><div><span class="medal ${PRESET_MEDALS[title]}" style="font-size:14px;padding:4px 12px;">${escapeHtml(title)}</span></div><div style="font-size:12px;">👥 获得: ${info.count} 人</div><div style="font-size:11px;">🏅 ${info.holders.map(h => escapeHtml(h)).join(', ') || '暂无'}</div></div>`;
                     }
                 }
-                if (!hasMedals) sHtml += `<p style="color:#999; width:100%;">暂无炫酷徽章</p>`;
+                if (!hasMedals) sHtml += `<p style="color:#999;width:100%;">暂无炫酷徽章</p>`;
                 sHtml += `</div>`;
                 statsDiv.innerHTML = sHtml;
             }
